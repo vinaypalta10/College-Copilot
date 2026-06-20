@@ -1,0 +1,28 @@
+{
+  "name": "college-copilot",
+  "version": "0.3.0",
+  "private": true,
+  "description": "College Copilot — a multi-user agent that finds UC Berkeley classes (by requirement, professor rating, workload, time) and research opportunities.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "scan": "tsx src/scripts/scan-once.ts",
+    "migrate": "tsx src/scripts/migrate-from-json.ts",
+    "import:courses": "tsx src/scripts/import-courses.ts",
+    "test": "node --test --import tsx tests/*.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "better-sqlite3": "^11.5.0",
+    "express": "^4.21.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

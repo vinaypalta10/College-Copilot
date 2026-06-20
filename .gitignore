@@ -1,0 +1,14 @@
+node_modules
+.env
+.env.local
+data/outreach.db
+data/outreach.db-journal
+data/outreach.db-shm
+data/outreach.db-wal
+.DS_Store
+*.log
+
+# Legacy personal outreach data (excluded from the shared repo)
+data/targets.json
+data/sources.json
+summer_2026_targets.csv

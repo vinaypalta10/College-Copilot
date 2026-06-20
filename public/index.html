@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>College Copilot</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <!-- ───────── Login view ───────── -->
+  <section id="loginView" class="login" hidden>
+    <div class="login-card">
+      <div class="brand-mark big">CC</div>
+      <h1>College Copilot</h1>
+      <p class="muted">Find the right Berkeley classes — by requirement, professor rating, workload, and time — and the research opportunities worth your email.</p>
+      <a id="googleBtn" class="btn primary block" href="/api/auth/google" hidden>Sign in with Google</a>
+      <form id="devLoginForm" class="dev-login" hidden>
+        <div class="divider"><span>dev login</span></div>
+        <input id="devEmail" type="email" placeholder="you@berkeley.edu" required>
+        <button class="btn primary block" type="submit">Continue</button>
+        <p class="small muted">Google OAuth isn't configured, so local dev-login is enabled.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ───────── App view ───────── -->
+  <div id="appView" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">CC</div>
+        <div class="brand-title"><h1>College Copilot</h1><span class="brand-sub" id="termLabel">Fall 2026</span></div>
+      </div>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="discover">Discover</button>
+        <button class="tab" data-tab="schedule">Schedule</button>
+        <button class="tab" data-tab="research">Research</button>
+        <button class="tab" data-tab="profile">Profile</button>
+      </nav>
+      <div class="topbar-actions">
+        <button id="themeToggle" class="ghost" title="Toggle dark mode">◐</button>
+        <span id="userChip" class="user-chip"></span>
+        <button id="logoutBtn" class="ghost">Sign out</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Discover -->
+      <section class="panel-view" data-view="discover">
+        <div class="advisor">
+          <input id="advisorInput" type="text" placeholder="Ask: &quot;only my CS upper-div, mornings, manageable workload, no prof below 3.5&quot;">
+          <button id="advisorBtn" class="btn primary">Ask Copilot</button>
+        </div>
+        <div class="filters" id="filters">
+          <input id="searchInput" type="search" placeholder="Search title / number…">
+          <select id="subjectFilter"><option value="">All subjects</option></select>
+          <label class="check"><input type="checkbox" id="openOnly"> Open seats only</label>
+        </div>
+        <div id="advisorSummary" class="advisor-summary" hidden></div>
+        <div id="courseList" class="course-list"></div>
+      </section>
+
+      <!-- Schedule -->
+      <section class="panel-view" data-view="schedule" hidden>
+        <div class="schedule-head">
+          <h2>Weekly schedule</h2>
+          <div class="schedule-actions">
+            <input id="planName" placeholder="Plan name (e.g. Fall draft)">
+            <button id="buildScheduleBtn" class="btn">Auto-build from shortlist</button>
+            <button id="savePlanBtn" class="btn primary">Save plan</button>
+          </div>
+        </div>
+        <div id="cartBar" class="cart-bar"></div>
+        <div id="calendar" class="calendar"></div>
+        <div id="savedPlans" class="saved-plans"></div>
+      </section>
+
+      <!-- Research -->
+      <section class="panel-view" data-view="research" hidden>
+        <div class="research-head">
+          <h2>Research opportunities</h2>
+          <p class="muted">Find labs &amp; URAP projects, then draft a warm outreach email. Nothing sends automatically — the button opens Gmail compose.</p>
+        </div>
+        <div id="researchList" class="course-list"></div>
+      </section>
+
+      <!-- Profile / onboarding -->
+      <section class="panel-view" data-view="profile" hidden>
+        <div class="profile-card">
+          <h2>Your preferences</h2>
+          <p class="muted">The Copilot ranks every class against these.</p>
+          <form id="profileForm">
+            <label>Major<input name="major" placeholder="Computer Science"></label>
+            <label>Expected grad year<input name="gradYear" type="number" min="2024" max="2035" placeholder="2027"></label>
+            <label>Interests (comma-separated)<input name="interests" placeholder="machine learning, systems, theory"></label>
+            <label>Completed courses (comma-separated)<input name="completedCourses" placeholder="COMPSCI 61A, COMPSCI 61B, MATH 54"></label>
+            <label>Requirements remaining (comma-separated)<input name="requirementsRemaining" placeholder="CS upper division, Breadth: Arts"></label>
+            <div class="row">
+              <label>Earliest class<input name="earliest" type="time" value="09:00"></label>
+              <label>Latest class<input name="latest" type="time" value="18:00"></label>
+            </div>
+            <label>Days you want off (comma-separated)<input name="daysOff" placeholder="F"></label>
+            <div class="row">
+              <label>Workload tolerance
+                <select name="workloadTolerance"><option value="light">Light</option><option value="medium" selected>Medium</option><option value="heavy">Heavy</option></select>
+              </label>
+              <label>Min professor rating<input name="minProfRating" type="number" step="0.1" min="0" max="5" placeholder="3.5"></label>
+            </div>
+            <button class="btn primary" type="submit">Save preferences</button>
+            <span id="profileNote" class="small muted"></span>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

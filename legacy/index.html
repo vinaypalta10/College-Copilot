@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ruoxi Summer 2026 Outreach Approval Desk</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #172026;
+      --muted: #637083;
+      --line: #d8dee8;
+      --accent: #166a5b;
+      --accent-2: #254f9a;
+      --danger: #9c2f25;
+      --ready: #eaf5f1;
+      --hold: #fff6df;
+      --no: #fbecea;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+    header {
+      background: #10242f;
+      color: white;
+      padding: 22px 28px 18px;
+      border-bottom: 4px solid #38a187;
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; line-height: 1.2; }
+    .sub { color: #dbe6ed; max-width: 980px; font-size: 14px; line-height: 1.45; }
+    main { padding: 20px 28px 36px; max-width: 1500px; margin: 0 auto; }
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    select, input[type="search"] {
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      padding: 0 10px;
+      font-size: 14px;
+      color: var(--ink);
+    }
+    input[type="search"] { min-width: 280px; }
+    button, .link-button {
+      height: 36px;
+      border: 1px solid #b9c4d4;
+      border-radius: 6px;
+      background: white;
+      color: var(--ink);
+      font-weight: 650;
+      padding: 0 12px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+    button.secondary { background: var(--accent-2); border-color: var(--accent-2); color: white; }
+    button.danger { color: var(--danger); border-color: #d9aaa4; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .metric .label { color: var(--muted); font-size: 12px; text-transform: uppercase; font-weight: 750; }
+    .metric .value { margin-top: 4px; font-size: 24px; font-weight: 800; }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(680px, 1fr) 460px;
+      gap: 16px;
+      align-items: start;
+    }
+    .table-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: 72vh;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 1080px; }
+    th, td {
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: #eef2f6;
+      z-index: 2;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+      color: #475569;
+    }
+    tr.selected { outline: 2px solid #38a187; outline-offset: -2px; background: #f7fcfa; }
+    .decision {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-weight: 750;
+      font-size: 12px;
+    }
+    .decision.pending { background: #eef2f6; color: #475569; }
+    .decision.approved { background: var(--ready); color: var(--accent); }
+    .decision.sent { background: #e6f7fb; color: #0e7490; }
+    .decision.replied { background: #e8f8ef; color: #15803d; }
+    .decision.no_response { background: #fff6df; color: #8a6100; }
+    .decision.follow_up { background: #eef2ff; color: #4338ca; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      position: sticky;
+      top: 16px;
+    }
+    .panel h2 { margin: 0 0 6px; font-size: 18px; }
+    .panel .meta { color: var(--muted); font-size: 13px; line-height: 1.4; margin-bottom: 12px; }
+    .checklist {
+      display: grid;
+      gap: 8px;
+      margin: 12px 0;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    label.check {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 8px;
+      align-items: start;
+      font-size: 13px;
+      color: #2c3946;
+      line-height: 1.35;
+    }
+    textarea {
+      width: 100%;
+      min-height: 360px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #132028;
+      background: #fbfcfe;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+    .small { color: var(--muted); font-size: 12px; line-height: 1.4; margin-top: 10px; }
+    .agent-status {
+      background: #edf7f4;
+      border: 1px solid #b9dcd2;
+      border-radius: 8px;
+      color: #17453d;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-bottom: 16px;
+      padding: 10px 12px;
+    }
+    .agent-status.offline { background: #fff7e6; border-color: #ead3a4; color: #684c12; }
+    .source-tag {
+      display: inline-block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    a { color: var(--accent-2); }
+    .fit { max-width: 260px; }
+    .primary-cta {
+      width: 100%;
+      height: 46px;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .quick-review {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .quick-review .check {
+      background: #f8fbfc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px;
+    }
+    .detail-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+    .rank-pill {
+      background: #e6f7fb;
+      border: 1px solid #bdebf3;
+      border-radius: 999px;
+      color: #0e7490;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+    .secondary-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .status-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .status-row select { width: 100%; }
+    .editor-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .02em;
+      margin: 10px 0 6px;
+      text-transform: uppercase;
+    }
+    .recipient-row {
+      display: grid;
+      grid-template-columns: 84px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin: 12px 0 8px;
+    }
+    .recipient-row label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+    .recipient-row input {
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      font-size: 14px;
+      padding: 0 10px;
+      width: 100%;
+    }
+    .edited-pill {
+      background: #e8f8ef;
+      border: 1px solid #bde7cd;
+      border-radius: 999px;
+      color: #15803d;
+      display: none;
+      font-size: 11px;
+      padding: 3px 8px;
+      text-transform: none;
+    }
+    .edited-pill.visible { display: inline-flex; }
+    .review-warning {
+      border-color: #e6b450 !important;
+      background: #fffaf0 !important;
+    }
+    body {
+      background: linear-gradient(180deg, #ecfeff 0, #f7fafb 260px);
+    }
+    header {
+      background: transparent;
+      color: var(--ink);
+      border-bottom: 0;
+      padding: 28px 28px 12px;
+    }
+    h1 { font-size: 28px; line-height: 1.15; }
+    .sub { color: var(--muted); max-width: 900px; line-height: 1.5; }
+    select, input[type="search"], button, .link-button { border-radius: 8px; }
+    button.primary { background: #15803d; border-color: #15803d; color: #fff; }
+    button.secondary { background: #0e7490; border-color: #0e7490; color: #fff; }
+    .metric, .table-wrap, .panel, .agent-status { border-radius: 8px; }
+    th { background: #f1f7f8; color: #48606b; }
+    tr.selected { outline-color: #0e7490; background: #f2fbfd; }
+    .panel { padding: 18px; }
+    textarea { min-height: 300px; }
+    @media (max-width: 1050px) {
+      main { padding: 16px; }
+      .toolbar, .grid { grid-template-columns: 1fr; }
+      .panel { position: static; }
+      .summary { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .secondary-actions { grid-template-columns: 1fr; }
+      .quick-review { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Summer 2026 Outreach Approval Desk</h1>
+    <div class="sub">A local extraction agent scans source pages, scores new opportunities against your resume, and feeds them into this approval desk. Nothing sends email automatically. You still make the final call.</div>
+  </header>
+  <main>
+    <section class="toolbar">
+      <div class="filters">
+        <input id="search" type="search" placeholder="Search name, project, company, fit">
+        <select id="pathFilter">
+          <option value="All">All paths</option>
+          <option value="A">Path A: Research cold email</option>
+          <option value="B">Path B: Startups</option>
+          <option value="C">Path C: Project/benchmark labs</option>
+        </select>
+        <select id="decisionFilter">
+          <option value="All">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="sent">Sent email</option>
+          <option value="replied">Replied</option>
+          <option value="no_response">No response</option>
+          <option value="follow_up">Follow-up</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="secondary" id="exportBtn">Export Decisions</button>
+        <button id="scanBtn">Run Extraction Now</button>
+      </div>
+    </section>
+    <section class="agent-status offline" id="agentStatus">Backend agent not connected. Start the local server to enable automatic extraction.</section>
+    <section class="summary">
+      <div class="metric"><div class="label">Total targets</div><div class="value" id="totalCount">0</div></div>
+      <div class="metric"><div class="label">Approved</div><div class="value" id="approvedCount">0</div></div>
+      <div class="metric"><div class="label">Research targets</div><div class="value" id="researchCount">0</div></div>
+      <div class="metric"><div class="label">Startup roles</div><div class="value" id="startupCount">0</div></div>
+      <div class="metric"><div class="label">Auto-scored</div><div class="value" id="autoCount">0</div></div>
+    </section>
+    <section class="grid">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Priority</th>
+              <th>Path</th>
+              <th>Name</th>
+              <th>Lab / Company</th>
+              <th>Project</th>
+              <th>Why Fit</th>
+              <th>Decision</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <aside class="panel">
+        <div class="detail-head">
+          <h2 id="detailTitle">Select a target</h2>
+          <span class="rank-pill" id="rankPill">Rank</span>
+        </div>
+        <div class="meta" id="detailMeta">Pick one row to review the customized draft and CEO checklist.</div>
+        <div class="checklist quick-review" id="reviewChecklist">
+          <label class="check"><input type="checkbox" id="c1"> Specific project sentence is credible and sourced</label>
+          <label class="check"><input type="checkbox" id="c2"> Proof bullets match the target's work</label>
+          <label class="check"><input type="checkbox" id="c3"> Ask is concrete: trial task or 15-minute chat</label>
+          <label class="check"><input type="checkbox" id="c4"> No weak phrasing: no "do you have projects" or generic AI interest</label>
+        </div>
+        <div class="recipient-row">
+          <label for="recipientInput">To</label>
+          <input id="recipientInput" type="email" placeholder="Paste recipient email here">
+        </div>
+        <div class="editor-label">
+          <span>Editable email draft</span>
+          <span class="edited-pill" id="editedPill">Edited</span>
+        </div>
+        <textarea id="draft" spellcheck="true" placeholder="Draft appears here after selecting a target."></textarea>
+        <button class="primary primary-cta" id="finalActionBtn" disabled>Approve & Open Gmail Draft</button>
+        <div class="secondary-actions">
+          <button class="secondary" id="rewriteBtn" disabled>Rewrite Human</button>
+          <button id="markSentBtn" disabled>Reached Out</button>
+        </div>
+        <div class="status-row">
+          <select id="outreachStatus" disabled>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved draft</option>
+            <option value="sent">Sent email</option>
+            <option value="replied">Replied</option>
+            <option value="no_response">No response</option>
+            <option value="follow_up">Follow-up needed</option>
+          </select>
+          <button id="saveStatusBtn" disabled>Update Status</button>
+        </div>
+        <div class="small" id="approvalNote">Check the review items, then use the green button. It opens a draft or application page; it does not send anything automatically.</div>
+      </aside>
+    </section>
+  </main>
+  <script>
+    let targets = [
+      {p:1,path:"A",name:"Mert Cemri",lab:"Sky Computing / BAIR",project:"MAST, multi-agent LLM failure taxonomy",fit:"Direct match to agent failure analysis, trace labeling, and benchmark construction",contact:"cemri@berkeley.edu",sentence:"I was especially interested in MAST's trace-level analysis of seven MAS frameworks and the 14-failure-mode taxonomy, because my BAIR benchmark work also focuses on making agent outputs auditable rather than just polished.",source:"https://people.eecs.berkeley.edu/~mert_cemri/"},
+      {p:2,path:"A",name:"Melissa Z. Pan",lab:"Sky Computing / BAIR",project:"MAST, MAD annotated traces, agent failure talks",fit:"Direct match to trajectory labeling, failure analysis, and documentation",contact:"melissapan@berkeley.edu",sentence:"I was especially interested in MAD/MAST's annotated multi-agent traces and the emphasis on explaining recurring failure patterns across frameworks.",source:"https://melissa-pan.github.io/"},
+      {p:3,path:"A",name:"Lakshya A. Agrawal",lab:"Sky Computing / BAIR / Berkeley NLP",project:"dspy.GRPO, reliable code generation, repository-level reasoning",fit:"Matches agent reliability, code/tool-use evaluation, and systems for LLM workflows",contact:"lakshyaaagrawal@berkeley.edu",sentence:"I was especially interested in your work on tuning modular agents with dspy.GRPO and using static-analysis-style monitors to improve LLM code reliability.",source:"https://people.eecs.berkeley.edu/~lakshyaaagrawal/"},
+      {p:4,path:"A",name:"Shishir G. Patil",lab:"Sky Computing / BAIR",project:"Gorilla, BFCL, GoEX, tool-use/runtime systems",fit:"Matches tool-use benchmarking, function calling, runtime safety, and LLM systems",contact:"sgp@berkeley.edu",sentence:"I was especially interested in BFCL and GoEX because they connect agent/tool-use evaluation to concrete runtime constraints like API correctness and post-execution validation.",source:"https://gorilla.cs.berkeley.edu/"},
+      {p:5,path:"A",name:"Tianjun Zhang",lab:"Sky Computing / Gorilla",project:"Gorilla, BFCL, function-calling evaluation",fit:"Matches API/function-call benchmark work and evaluation tooling",contact:"tianjunz@berkeley.edu",sentence:"I was especially interested in Gorilla/BFCL's evaluation of function-calling accuracy across Python, Java, JavaScript, and REST APIs.",source:"https://gorilla.cs.berkeley.edu/"},
+      {p:6,path:"A",name:"Yuanbo Pang",lab:"BAIR",project:"Agent's Last Exam, production-grade agent evaluation",fit:"Very close to your BAIR private-equity benchmark and agent evaluation positioning",contact:"Email link on site",sentence:"I was especially interested in ALE's focus on production-grade economic value across industry tasks, because my AgentHLE work also evaluates agents on realistic business artifacts.",source:"https://www.yuanbopang.pro/"},
+      {p:7,path:"A",name:"Mihran Miroyan",lab:"Sky Computing",project:"Search Arena, search-augmented LLM evaluation",fit:"Matches LLM evaluation, benchmark data, preference labels, search/RAG workflows",contact:"Need verify email",sentence:"I was especially interested in Search Arena's in-the-wild human-preference setup for evaluating search-augmented LLM systems beyond static factual QA.",source:"https://sky.cs.berkeley.edu/project/search-arena/"},
+      {p:8,path:"A",name:"Tsung-Han Patrick Wu",lab:"Sky Computing",project:"Search Arena, search-augmented LLM evaluation",fit:"Matches search-augmented agent eval and user-interaction traces",contact:"Need verify email",sentence:"I was especially interested in Search Arena's dataset of real user-system interactions and the idea of evaluating how systems retrieve, process, and present web information.",source:"https://sky.cs.berkeley.edu/project/search-arena/"},
+      {p:9,path:"A",name:"Jiayi Pan",lab:"Ex-BAIR / language model agents",project:"SkyRL, SWE-Gym, autonomous digital-agent evaluation",fit:"Strong technical fit on long-horizon agents, evals, SWE agents, and self-verification",contact:"Email link on site",sentence:"I was especially interested in your work on SkyRL and autonomous digital-agent evaluation, especially using evaluators to improve agents without extra supervision.",source:"https://www.jiayipan.com/"},
+      {p:10,path:"A",name:"AgentX / RDI organizers",lab:"Berkeley RDI",project:"AgentX LLM Agents competition and research community",fit:"Good gateway for RDI agent projects, benchmarks, and collaborators",contact:"Discord/contact route",sentence:"I was especially interested in the Research Track's focus on agent architecture, benchmarks/evaluation, and multi-agent systems, because that is exactly where my BAIR benchmark and Postmortem Memory Agent experience fits.",source:"https://rdi.berkeley.edu/agentx/"},
+      {p:11,path:"B",name:"Dex",lab:"YC W25",project:"2026 Summer AI/ML Engineer Intern, browser-native AI coworker",fit:"Excellent match: agent systems, tool use, memory, evaluation frameworks, workflow automation",contact:"Apply via YC",sentence:"Your sample projects around tool-calling environments, memory evaluation, and mapping browser paths to action trajectories line up closely with my BAIR agent benchmark and Postmortem Memory Agent work.",source:"https://www.ycombinator.com/companies/joindex/jobs/jgOpS9K-2026-summer-ai-ml-engineer-intern"},
+      {p:12,path:"B",name:"PathPilot",lab:"YC S24",project:"Summer 2026 Fullstack Intern, fintech operations agents",fit:"Excellent match: finance/workflow agents, compliance, production ops",contact:"Apply via YC",sentence:"I was drawn to PathPilot because your lending-operations agents sit exactly at the intersection of finance workflows, reliability, and agent evaluation that I worked on in my BAIR private-equity benchmark.",source:"https://www.ycombinator.com/companies/pathpilot/jobs/ior8myx-summer-2026-internship"},
+      {p:13,path:"B",name:"SafetyKit",lab:"YC S23",project:"Full Stack Engineer Intern, AI agents for risk/compliance/safety",fit:"Strong match: agent workflows, high-stakes evaluation, marketplace/risk systems",contact:"Apply via YC",sentence:"Your past intern projects around autonomous investigation and deployed classifiers fit my interest in building agents whose outputs can be audited for factual grounding and risk.",source:"https://www.ycombinator.com/companies/safetykit/jobs/eQpUzRD-full-stack-engineer-intern-summer-2026"},
+      {p:14,path:"B",name:"SID.ai",lab:"YC",project:"Research Intern, retrieval and reasoning over data sources",fit:"Strong fit: retrieval systems, memory, context, research engineering",contact:"Apply via YC",sentence:"I was especially interested in SID's focus on retrieval as the missing context layer for practical AI, which connects directly to my Postmortem Memory Agent and benchmark work on evidence-grounded outputs.",source:"https://www.ycombinator.com/companies/sid/jobs/SmhVhTs-research-intern-summer-2026"},
+      {p:15,path:"B",name:"14.ai",lab:"YC W24",project:"AI Internship, autonomous brands and customer-facing agents",fit:"Good product/engineering fit: live agent optimization and reliability",contact:"Apply via YC",sentence:"I was interested in the role because it combines customer-facing AI agents with reliability and performance work, and I have experience turning unstructured incident history into operational agent memory.",source:"https://www.ycombinator.com/companies/14-ai/jobs/nyx4rnH-ai-internship-now-and-summer-2026"},
+      {p:16,path:"B",name:"Bloom",lab:"YC X25",project:"AI Engineering Internship, reliable AI coding agent",fit:"Strong fit: coding agents, evals, TypeScript/product engineering",contact:"Apply via YC",sentence:"The question of building a reliable AI coding agent connects closely to my multi-agent proof-system prototype and my interest in evaluation-driven agent design.",source:"https://www.ycombinator.com/companies/bloom-4/jobs/VAkpMHI-ai-engineering-student-internship-winter-or-summer-2026"},
+      {p:17,path:"B",name:"Pulse",lab:"YC",project:"Machine Learning Engineer Intern, document extraction systems",fit:"Good fit: evaluation/data curation, document workflows, finance artifacts",contact:"Apply via YC",sentence:"I was interested in Pulse because reliable extraction from messy documents has similar evaluation problems to my private-equity workflow benchmark: grounding, numerical consistency, and usefulness.",source:"https://www.ycombinator.com/companies/pulse-3/jobs/N4xZlwq-machine-learning-engineer-intern-summer-2026"},
+      {p:18,path:"B",name:"Fresco",lab:"YC F24",project:"AI SWE Intern, construction copilot and workflow search",fit:"Good fit: domain-specific workflows, deployed features, document retrieval",contact:"Apply via YC",sentence:"I was interested in Fresco because construction workflows require agents to find and act on information buried in messy project documents, which matches my evaluation and workflow-systems background.",source:"https://www.ycombinator.com/companies/fresco/jobs/aah1brf-ai-swe-intern-summer-2026"},
+      {p:19,path:"B",name:"Novaflow",lab:"YC S25",project:"ML Engineer Intern, AI data analyst for biology labs",fit:"Good fit: research workflows, analysis automation, user-facing outputs",contact:"Apply via YC",sentence:"I was interested in Novaflow because automating scientific analysis requires the same kind of reproducible experiment infrastructure and clear evaluation that I built for GeneLLM.",source:"https://www.ycombinator.com/companies/novaflow/jobs/YndeeJL-machine-learning-engineer-intern-summer-2026"},
+      {p:20,path:"B",name:"StarSling",lab:"YC",project:"Software Engineer Intern, agent-first product experiences",fit:"Good fit: agent-first APIs/CLI/Markdown and product engineering",contact:"Apply via YC",sentence:"I was interested in StarSling's agent-first product experience work because I have built both agent dashboards and workflow-focused evaluation systems, not just chat demos.",source:"https://www.ycombinator.com/companies/starsling/jobs/J3VF6Ej-software-engineer-intern-summer-2026"},
+      {p:21,path:"C",name:"Arcline",lab:"Education AI",project:"Agentic AI R&D Intern, district query workloads",fit:"Strong fit: benchmark orchestration and real-world education workflows",contact:"Apply via company",sentence:"I was especially interested in benchmarking orchestration approaches against real district query workloads, since my background is in agent evaluation on realistic workflow artifacts.",source:"https://www.eduarcline.us/careers/agentic-ai-rd-intern"},
+      {p:22,path:"C",name:"Aegean AI",lab:"Research/engineering program",project:"Summer of Agents 2026",fit:"Strong fit: every project ships with eval artifact; coding agents and research engineering",contact:"Apply via company",sentence:"I was interested in Summer of Agents because it requires concrete evaluation artifacts, which matches how I want my public project and summer work to be judged.",source:"https://aegean.ai/careers/virtual-internships/summer-of-agents-2026"},
+      {p:23,path:"C",name:"Together AI",lab:"AI infrastructure",project:"Frontier Agents Intern, reliability/scalability/alignment",fit:"Strong fit: failure modes, agent operations at scale, long-horizon reasoning",contact:"Apply via job board/company",sentence:"I was interested in the Frontier Agents role because it explicitly combines agent reliability, scalability, failure modes, and infrastructure for agent operations.",source:"https://jobs.therundown.ai/jobs/190767450-frontier-agents-intern-summer-2026"},
+      {p:24,path:"C",name:"Scale Labs",lab:"AI evaluation research lab",project:"Agents, evaluation, alignment, benchmark work",fit:"Strong fit: SWE Atlas, HiL-BENCH, rubric rewards, retrieval evaluation",contact:"Careers/contact route",sentence:"I was especially interested in SWE Atlas and HiL-BENCH because they focus on evaluating agent behavior beyond average benchmark scores.",source:"https://labs.scale.com/"},
+      {p:25,path:"C",name:"Centific",lab:"AI evaluation / benchmarking",project:"Research Intern, multimodal LLM benchmarking",fit:"Good fit: benchmark design, statistical analysis, dataset curation",contact:"Apply via listing",sentence:"I was interested in the role because it is explicitly about designing, executing, and analyzing benchmarks for AI models, which matches my AgentHLE and GeneLLM experience.",source:"https://remowork.life/jobs/6a086ded442cac0153e2d64d/research-intern-multimodal-llm-benchmarking"}
+    ];
+
+    const decisions = JSON.parse(localStorage.getItem("ruoxi_outreach_decisions") || "{}");
+    const draftEdits = JSON.parse(localStorage.getItem("ruoxi_outreach_draft_edits") || "{}");
+    const recipientEdits = JSON.parse(localStorage.getItem("ruoxi_outreach_recipients") || "{}");
+    const checklist = ["c1","c2","c3","c4"];
+    let selected = null;
+    let backendAvailable = false;
+    let backendStatus = null;
+
+    const rows = document.getElementById("rows");
+    const search = document.getElementById("search");
+    const pathFilter = document.getElementById("pathFilter");
+    const decisionFilter = document.getElementById("decisionFilter");
+    const draft = document.getElementById("draft");
+    const recipientInput = document.getElementById("recipientInput");
+    const rewriteBtn = document.getElementById("rewriteBtn");
+    const finalActionBtn = document.getElementById("finalActionBtn");
+    const markSentBtn = document.getElementById("markSentBtn");
+    const outreachStatus = document.getElementById("outreachStatus");
+    const saveStatusBtn = document.getElementById("saveStatusBtn");
+    const editedPill = document.getElementById("editedPill");
+    const scanBtn = document.getElementById("scanBtn");
+
+    function decisionFor(t) { return decisions[t.p]?.decision || "pending"; }
+    function statusLabel(status) {
+      return ({
+        pending: "pending",
+        approved: "approved",
+        sent: "sent",
+        replied: "replied",
+        no_response: "no response",
+        follow_up: "follow-up"
+      })[status] || status || "pending";
+    }
+    function save() {
+      localStorage.setItem("ruoxi_outreach_decisions", JSON.stringify(decisions));
+      if (backendAvailable) {
+        fetch("/api/decisions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ decisions })
+        }).catch(() => {});
+      }
+    }
+    function pathLabel(p) {
+      return p === "A" ? "Research" : p === "B" ? "Startup" : "Project";
+    }
+    function targetKey(t) {
+      return String(t?.id || t?.p || "");
+    }
+    function extractEmail(value) {
+      return String(value || "").match(/[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+/)?.[0] || "";
+    }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[ch]));
+    }
+    function renderRows() {
+      const q = search.value.toLowerCase();
+      const pf = pathFilter.value;
+      const df = decisionFilter.value;
+      rows.innerHTML = "";
+      targets
+        .filter(t => pf === "All" || t.path === pf)
+        .filter(t => df === "All" || decisionFor(t) === df)
+        .filter(t => [t.name,t.lab,t.project,t.fit,t.sentence].join(" ").toLowerCase().includes(q))
+        .forEach(t => {
+          const tr = document.createElement("tr");
+          if (selected?.p === t.p) tr.className = "selected";
+          tr.innerHTML = `
+            <td><input type="radio" name="target" ${selected?.p === t.p ? "checked" : ""} aria-label="Select ${t.name}"></td>
+            <td>${escapeHtml(t.p)}</td>
+            <td>${escapeHtml(pathLabel(t.path))}${t.lastSeenAt ? `<br><span class="source-tag">Auto</span>` : ""}</td>
+            <td><strong>${escapeHtml(t.name)}</strong></td>
+            <td>${escapeHtml(t.lab)}</td>
+            <td>${escapeHtml(t.project)}</td>
+            <td class="fit">${escapeHtml(t.fit)}</td>
+            <td><span class="decision ${decisionFor(t)}">${statusLabel(decisionFor(t))}</span></td>
+            <td><a href="${escapeHtml(t.source)}" target="_blank" rel="noreferrer">Source</a></td>
+          `;
+          tr.addEventListener("click", () => selectTarget(t));
+          rows.appendChild(tr);
+        });
+      renderMetrics();
+    }
+    function renderMetrics() {
+      document.getElementById("totalCount").textContent = targets.length;
+      document.getElementById("approvedCount").textContent = targets.filter(t => ["approved","sent","replied","no_response","follow_up"].includes(decisionFor(t))).length;
+      document.getElementById("researchCount").textContent = targets.filter(t => t.path === "A").length;
+      document.getElementById("startupCount").textContent = targets.filter(t => t.path === "B").length;
+      document.getElementById("autoCount").textContent = targets.filter(t => t.score || t.lastSeenAt).length;
+      renderAgentStatus();
+    }
+    function renderAgentStatus() {
+      const el = document.getElementById("agentStatus");
+      if (!backendAvailable) {
+        el.className = "agent-status offline";
+        el.textContent = "Backend agent not connected. Run `node server.js` from /Users/rxw/Desktop/outreach_automation, then open http://localhost:4174.";
+        scanBtn.disabled = true;
+        return;
+      }
+      el.className = "agent-status";
+      const last = backendStatus?.lastScanFinishedAt ? new Date(backendStatus.lastScanFinishedAt).toLocaleString() : "not completed yet";
+      const active = backendStatus?.scanning ? "Scanning now" : "Idle";
+      const error = backendStatus?.lastScanError ? ` Last error: ${backendStatus.lastScanError}.` : "";
+      el.textContent = `${active}. Last scan: ${last}. Added ${backendStatus?.lastScanAdded ?? 0}, updated ${backendStatus?.lastScanUpdated ?? 0}.${error}`;
+      scanBtn.disabled = !!backendStatus?.scanning;
+    }
+    function subjectFor(t) {
+      if (t.path === "A") return "Undergrad interested in agent evaluation / benchmark work this summer";
+      if (t.path === "B") return "Berkeley DS undergrad interested in agent workflow engineering this summer";
+      return "Undergrad interested in agent benchmark / evaluation work this summer";
+    }
+    function emailDraft(t) {
+      const greeting = t.path === "B" ? `Hi ${t.name} team,` : `Hi ${t.name.split(" ")[0]},`;
+      const opener = t.path === "A"
+        ? "I'm Ruoxi Wu, a UC Berkeley Data Science undergrad interested in LLM agent evaluation and real-world workflow reliability."
+        : "I'm Ruoxi Wu, a UC Berkeley Data Science undergrad interested in building reliable LLM agents and workflow systems.";
+      const middle = t.path === "A" && t.lab.includes("Sky")
+        ? "I'm particularly interested in systems-level questions around making agents reliable outside demos: how to structure long-horizon tasks, log trajectories, evaluate failures, and connect benchmark results to system design."
+        : t.sentence;
+      const help = t.path === "B"
+        ? "This summer, I'd be excited to help ship evaluation tooling, agent workflow features, retrieval/memory systems, dashboards, or production reliability work for agent products."
+        : "This summer, I'd be excited to help with benchmark construction, failure analysis, trajectory labeling, retrieval/evaluation tooling, or dashboarding for agent workflows.";
+      const ask = t.path === "B"
+        ? "Would you be open to considering me for a summer internship or a small trial task?"
+        : "Would you be open to a 15-minute chat sometime next week, or a small trial task so you can evaluate fit?";
+      return `Subject: ${subjectFor(t)}\n\n${greeting}\n\n${opener} I came across your work on ${t.project} and ${middle}\n\nMy background is a mix of agent evaluation, technical benchmarking, and finance/workflow systems:\n- At BAIR, I helped design a benchmark for LLM agents in private-equity workflows across company screens, diligence memos, and valuation support, scoring outputs on factual grounding, numerical consistency, hallucination risk, and usefulness.\n- I built a Postmortem Memory Agent that placed 2nd at Build SMTH AI Hackathon and improved retrieval accuracy by 30% in demo evaluation by linking live alerts to prior postmortems, code diffs, and recurring failure patterns.\n\n${help} I can commit [X] hours/week and would be happy to start with a 2-week trial task so you can evaluate fit.\n\n${ask}\n\nBest,\nRuoxi`;
+    }
+    function selectTarget(t) {
+      const previousKey = targetKey(selected);
+      if (previousKey && draft.value) {
+        draftEdits[previousKey] = draft.value;
+        localStorage.setItem("ruoxi_outreach_draft_edits", JSON.stringify(draftEdits));
+      }
+      selected = t;
+      const key = targetKey(t);
+      const generated = emailDraft(t);
+      const recipient = recipientEdits[key] || extractEmail(t.contact);
+      document.getElementById("detailTitle").textContent = t.name;
+      document.getElementById("rankPill").textContent = `#${t.p}`;
+      document.getElementById("detailMeta").innerHTML = `${escapeHtml(pathLabel(t.path))} · ${escapeHtml(t.lab)}<br>${escapeHtml(t.project)}<br><a href="${escapeHtml(t.source)}" target="_blank" rel="noreferrer">Open source page</a> · ${escapeHtml(t.contact)}${t.evidence ? `<br><br><strong>Extractor evidence:</strong> ${escapeHtml(t.evidence)}` : ""}`;
+      recipientInput.value = recipient;
+      outreachStatus.value = decisionFor(t);
+      draft.value = draftEdits[key] || generated;
+      checklist.forEach(id => document.getElementById(id).checked = !!decisions[t.p]?.checks?.[id]);
+      updateDraftButtons();
+      renderRows();
+    }
+    function currentChecksPassed() {
+      return checklist.every(id => document.getElementById(id).checked);
+    }
+    function hasEmailContact(t) {
+      return !!extractEmail(recipientInput.value || t?.contact);
+    }
+    function updateDraftButtons() {
+      const ready = selected && currentChecksPassed();
+      rewriteBtn.disabled = !selected || !backendAvailable;
+      markSentBtn.disabled = !selected;
+      outreachStatus.disabled = !selected;
+      saveStatusBtn.disabled = !selected;
+      editedPill.classList.toggle("visible", !!selected && !!draftEdits[targetKey(selected)]);
+      finalActionBtn.disabled = !selected;
+      finalActionBtn.textContent = selected && hasEmailContact(selected)
+        ? "Approve & Open Gmail Draft"
+        : "Approve & Open Source Page";
+      document.getElementById("approvalNote").textContent = ready
+        ? "Ready. The green button opens Gmail compose if the To field has an email; otherwise it opens the source page."
+        : "Check the review items and make sure the To field has an email if you want an email draft.";
+    }
+    function setDecision(decision) {
+      if (!selected) return;
+      const checks = {};
+      checklist.forEach(id => checks[id] = document.getElementById(id).checked);
+      decisions[selected.p] = { decision, checks, decidedAt: new Date().toISOString() };
+      save();
+      updateDraftButtons();
+      renderRows();
+    }
+    markSentBtn.onclick = () => setDecision("sent");
+    saveStatusBtn.onclick = () => setDecision(outreachStatus.value);
+    outreachStatus.addEventListener("change", () => {
+      if (!selected) return;
+      setDecision(outreachStatus.value);
+    });
+    checklist.forEach(id => document.getElementById(id).addEventListener("change", () => {
+      if (selected) {
+        decisions[selected.p] = decisions[selected.p] || { decision: decisionFor(selected) };
+        decisions[selected.p].checks = decisions[selected.p].checks || {};
+        decisions[selected.p].checks[id] = document.getElementById(id).checked;
+        save();
+      }
+      updateDraftButtons();
+    }));
+    function draftParts() {
+      const [subjectLine, ...bodyParts] = draft.value.split("\n\n");
+      return {
+        email: extractEmail(recipientInput.value || selected?.contact),
+        subject: subjectLine.replace("Subject: ", ""),
+        body: bodyParts.join("\n\n")
+      };
+    }
+    rewriteBtn.onclick = async () => {
+      if (!selected || !backendAvailable) return;
+      rewriteBtn.disabled = true;
+      rewriteBtn.textContent = "Writing...";
+      document.getElementById("approvalNote").textContent = "Writing a more human, question-first email draft...";
+      try {
+        const response = await fetch("/api/write-email", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ target: selected, currentDraft: draft.value })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.draft) throw new Error(result.error || "Writer failed");
+        draft.value = result.draft;
+        draftEdits[targetKey(selected)] = draft.value;
+        localStorage.setItem("ruoxi_outreach_draft_edits", JSON.stringify(draftEdits));
+        document.getElementById("approvalNote").textContent = result.mode === "openai"
+          ? "ChatGPT writer updated the draft. Review it, then open Gmail."
+          : "Local writer updated the draft. Set OPENAI_API_KEY to use the ChatGPT writer.";
+      } catch (error) {
+        document.getElementById("approvalNote").textContent = `Writer failed: ${error.message}`;
+      } finally {
+        rewriteBtn.textContent = "Rewrite Human";
+        updateDraftButtons();
+      }
+    };
+    draft.addEventListener("input", () => {
+      if (!selected) return;
+      draftEdits[targetKey(selected)] = draft.value;
+      localStorage.setItem("ruoxi_outreach_draft_edits", JSON.stringify(draftEdits));
+      updateDraftButtons();
+    });
+    recipientInput.addEventListener("input", () => {
+      if (!selected) return;
+      recipientEdits[targetKey(selected)] = recipientInput.value.trim();
+      localStorage.setItem("ruoxi_outreach_recipients", JSON.stringify(recipientEdits));
+      updateDraftButtons();
+    });
+    function openSelectedTarget() {
+      if (!selected) return;
+      if (hasEmailContact(selected)) {
+        const { email, subject, body } = draftParts();
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        navigator.clipboard?.writeText(`To: ${email}\nSubject: ${subject}\n\n${body}`).catch(() => {});
+        window.location.href = gmailUrl;
+      } else {
+        window.location.href = selected.source;
+      }
+    }
+    finalActionBtn.onclick = () => {
+      if (!selected) return;
+      const review = document.getElementById("reviewChecklist");
+      if (!currentChecksPassed()) {
+        review.classList.add("review-warning");
+        document.getElementById("approvalNote").textContent = "Finish the four review checks first, then click the green button once.";
+        setTimeout(() => review.classList.remove("review-warning"), 1200);
+        return;
+      }
+      setDecision("sent");
+      openSelectedTarget();
+    };
+    document.addEventListener("keydown", event => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        finalActionBtn.click();
+      }
+    });
+    document.getElementById("exportBtn").onclick = () => {
+      const payload = targets.map(t => ({ priority:t.p, path:t.path, name:t.name, decision:decisionFor(t), contact:t.contact, source:t.source, decidedAt:decisions[t.p]?.decidedAt || "" }));
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ruoxi_outreach_decisions.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+    async function loadBackend() {
+      try {
+        const [targetResponse, statusResponse] = await Promise.all([
+          fetch("/api/targets", { cache: "no-store" }),
+          fetch("/api/status", { cache: "no-store" })
+        ]);
+        if (!targetResponse.ok || !statusResponse.ok) throw new Error("Backend unavailable");
+        const db = await targetResponse.json();
+        backendStatus = await statusResponse.json();
+        backendAvailable = true;
+        targets = (db.targets || []).map((target, index) => ({
+          ...target,
+          p: target.p || index + 1,
+          path: target.path || "A",
+          contact: target.contact || "Need verify contact"
+        })).sort((a, b) => Number(a.p) - Number(b.p));
+        Object.entries(db.decisions || {}).forEach(([key, value]) => {
+          if (!decisions[key]) decisions[key] = value;
+        });
+        if (!selected && targets.length) selected = targets[0];
+        if (selected) {
+          selected = targets.find(t => t.p === selected.p || t.id === selected.id) || targets[0];
+          selectTarget(selected);
+        } else {
+          renderRows();
+        }
+      } catch {
+        backendAvailable = false;
+        renderRows();
+      }
+    }
+    async function refreshStatus() {
+      if (!backendAvailable) return;
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        backendStatus = await response.json();
+        renderAgentStatus();
+      } catch {
+        backendAvailable = false;
+        renderAgentStatus();
+      }
+    }
+    scanBtn.onclick = async () => {
+      if (!backendAvailable) return;
+      scanBtn.disabled = true;
+      scanBtn.textContent = "Scanning...";
+      await fetch("/api/scan", { method: "POST" }).catch(() => {});
+      setTimeout(loadBackend, 2000);
+      setTimeout(loadBackend, 8000);
+      scanBtn.textContent = "Run Extraction Now";
+    };
+    [search,pathFilter,decisionFilter].forEach(el => el.addEventListener("input", renderRows));
+    loadBackend();
+    setInterval(loadBackend, 30000);
+    setInterval(refreshStatus, 5000);
+    selectTarget(targets[0]);
+  </script>
+</body>
+</html>
