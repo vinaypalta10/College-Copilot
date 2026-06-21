@@ -245,6 +245,13 @@ function directoryScore(row: ProfessorRow, query: string, profileTerms: string[]
   return score;
 }
 
+function looksLikePersonName(query: string): boolean {
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  return words.length >= 2
+    && words.length <= 4
+    && words.every(word => /^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ.'’-]*$/.test(word));
+}
+
 /** Search the persistent imported directory. Returns [] before the first import. */
 export function searchImportedBerkeleyProfessors(
   db: DB,
@@ -255,9 +262,19 @@ export function searchImportedBerkeleyProfessors(
   if (!rows.length) return [];
   const query = input.query?.trim() || "";
   const limit = Math.min(input.limit ?? 12, 30);
+  const nameQuery = looksLikePersonName(query);
+  const normalizedQuery = normalizeProfessorName(query);
   return rows
     .map(row => ({ row, score: directoryScore(row, query, input.profileTerms || []) }))
-    .filter(({ score }) => !query || score > 13)
+    .filter(({ row, score }) => {
+      if (!query) return true;
+      if (nameQuery) {
+        return row.normalized_name === normalizedQuery
+          || row.normalized_name.includes(normalizedQuery)
+          || normalizedQuery.includes(row.normalized_name);
+      }
+      return score > 13;
+    })
     .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name))
     .slice(0, limit)
     .map(({ row, score }) => ({

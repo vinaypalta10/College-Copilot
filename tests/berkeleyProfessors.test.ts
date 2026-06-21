@@ -10,7 +10,12 @@ import {
   parseEecsFacultyBio,
   searchImportedBerkeleyProfessors,
 } from "../src/providers/berkeleyProfessors.ts";
-import { parseVcrFacultyDetail, parseVcrFacultyListPage } from "../src/ingest/berkeleyFaculty.ts";
+import {
+  parseDepartmentFacultyDetail,
+  parseDepartmentFacultyList,
+  parseVcrFacultyDetail,
+  parseVcrFacultyListPage,
+} from "../src/ingest/berkeleyFaculty.ts";
 import { Repo } from "../src/db/repo.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -110,6 +115,32 @@ test("parseVcrFacultyDetail enriches public profile metadata", () => {
   assert.equal(detail.imageUrl, "https://vcresearch.berkeley.edu/photos/abbeel-large.jpg");
 });
 
+test("department parser extracts Ani Adhikari from the Statistics directory", () => {
+  const source = {
+    name: "Berkeley Statistics faculty",
+    department: "Dept of Statistics",
+    url: "https://statistics.berkeley.edu/people/faculty",
+    parser: "drupal-article" as const,
+  };
+  const records = parseDepartmentFacultyList(`
+    <article class="node node--type-faculty node--view-mode-teaser">
+      <a href="/people/ani-adhikari"><img src="/faculty/adhikari.jpg" alt="Ani Adhikari"></a>
+      <h3 class="page--title"><a href="/people/ani-adhikari">Ani Adhikari</a></h3>
+      <div class="field field--name-field-job-title field__item">Teaching Professor</div>
+    </article>
+  `, source);
+  assert.equal(records[0]?.name, "Ani Adhikari");
+  assert.equal(records[0]?.title, "Teaching Professor");
+  assert.equal(records[0]?.profileUrl, "https://statistics.berkeley.edu/people/ani-adhikari");
+
+  const enriched = parseDepartmentFacultyDetail(`
+    <div class="field field--name-field-email">
+      <div class="field__item">adhikari@berkeley.edu</div>
+    </div>
+  `, records[0]!);
+  assert.equal(enriched.email, "adhikari@berkeley.edu");
+});
+
 test("imported professor search puts an exact name above profile-interest matches", () => {
   const dir = mkdtempSync(join(tmpdir(), "professor-search-"));
   const db = new Database(join(dir, "test.db"));
@@ -160,5 +191,38 @@ test("imported professor search puts an exact name above profile-interest matche
   } finally {
     db.close();
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("person-name searches do not return unrelated biography matches", () => {
+  const db = new Database(":memory:");
+  db.exec(schema);
+  const repo = new Repo(db);
+  const now = new Date().toISOString();
+  try {
+    repo.upsertProfessor({
+      id: "unrelated",
+      name: "Aaron Fisher",
+      normalized_name: "aaron fisher",
+      email: "fisher@berkeley.edu",
+      title: "Professor",
+      departments: JSON.stringify(["Psychology"]),
+      research_interests: JSON.stringify(["statistics"]),
+      bio: "Studies dynamic and individualized systems.",
+      profile_url: "https://example.com",
+      image_url: null,
+      source_names: JSON.stringify(["Test"]),
+      source_urls: JSON.stringify([]),
+      imported_at: now,
+      last_seen_at: now,
+      active: 1,
+    });
+    assert.deepEqual(searchImportedBerkeleyProfessors(db, {
+      query: "Ani Adhikari",
+      profileTerms: [],
+      limit: 12,
+    }), []);
+  } finally {
+    db.close();
   }
 });

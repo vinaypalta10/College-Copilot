@@ -93,8 +93,9 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
 - **UC Berkeley Faculty Expertise Finder** (`vcresearch.berkeley.edu/faculty-expertise`) —
   campus-wide professor, department, research-interest, profile, and public contact data.
 - **Official department faculty directories** — merged as coverage overlays for faculty omitted
-  from the central finder. EECS CS/EE are currently included; new department adapters can be
-  added without changing the professor database or search API.
+  from the central finder. Current adapters cover EECS/Computer Science, Statistics, Mathematics,
+  Integrative Biology, Molecular & Cell Biology, Physics, and English. History, Chemistry, and
+  other departments remain covered by the campus-wide finder and can receive overlays as needed.
 
 ## Caching (Redis)
 
