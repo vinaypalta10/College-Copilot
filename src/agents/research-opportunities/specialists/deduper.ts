@@ -37,7 +37,9 @@ export function dedupe(input: DeduperInput): DeduperOutput {
   let merged = 0;
 
   for (const opp of input.opportunities) {
-    const key = `${normUrl(opp.url)}|${normKey(opp)}`;
+    // Collapse by org+title first (identical anchor text reused across links is
+    // boilerplate), then fall back to same-URL detection.
+    const key = normKey(opp);
     const existing = byKey.get(key) ?? findByUrl(byKey, opp);
     if (!existing) {
       byKey.set(key, { ...opp, topics: [...opp.topics] });

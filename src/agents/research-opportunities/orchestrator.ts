@@ -58,7 +58,14 @@ export interface ResearchOrchestratorOutput {
   research: ResearchOpportunity[];
 }
 
-function toTargetRow(o: ResearchOpportunity, priority: number): TargetRow {
+/** Small matched-term count fed to scoreOpportunity as a relevance signal. */
+function relevanceCount(o: ResearchOpportunity, terms: string[]): number {
+  if (!terms.length) return 0;
+  const hay = `${o.title} ${o.topics.join(" ")} ${o.evidence}`.toLowerCase();
+  return terms.filter((t) => hay.includes(t)).length;
+}
+
+function toTargetRow(o: ResearchOpportunity, priority: number, score: number): TargetRow {
   const now = new Date().toISOString();
   return {
     id: o.id,
@@ -73,7 +80,7 @@ function toTargetRow(o: ResearchOpportunity, priority: number): TargetRow {
     source: o.url,
     notes: `Discovered by research-opportunities pipeline (${o.opportunityType}).`,
     evidence: o.evidence,
-    score: 0,
+    score,
     score_facets: JSON.stringify({ source: o.source, type: o.opportunityType, topics: o.topics, deadline: o.deadline ?? null }),
     extracted_at: now,
     last_seen_at: now,
@@ -129,15 +136,19 @@ export async function discoverResearchOpportunities(
   const deduped = dedupe({ opportunities: extracted.opportunities });
   record("research-deduper", true, deduped.summary);
 
-  // 6. summarizer (+ per-item fit) — capped to the requested limit
-  const capped = deduped.opportunities.slice(0, limit);
+  // 6. summarizer (+ per-item fit) — keep the most query-relevant up to the cap.
+  const terms = [...query.toLowerCase().split(/[^a-z0-9+#]+/), ...(input.interests ?? []).map((s) => s.toLowerCase())].filter((t) => t.length > 2);
+  const capped = [...deduped.opportunities]
+    .sort((a, b) => relevanceCount(b, terms) - relevanceCount(a, terms))
+    .slice(0, limit);
   const summarized = await summarize({ opportunities: capped, query, interests: input.interests });
   record("research-summarizer", true, `${summarized.summary} (${summarized.mode})`);
 
   const opportunities = summarized.opportunities;
 
-  // Persist to the SQLite cache so the draft endpoint can reopen them.
-  opportunities.forEach((o, i) => ctx.repo.upsertTarget(toTargetRow(o, i + 1)));
+  // Persist to the SQLite cache so the draft endpoint can reopen them; the API
+  // re-scores via scoreOpportunity, using this relevance count as a signal.
+  opportunities.forEach((o, i) => ctx.repo.upsertTarget(toTargetRow(o, i + 1, relevanceCount(o, terms))));
   record("result-cache", true, `Cached ${opportunities.length} opportunity(ies) for drafting and reopening.`);
 
   // Search memory (Redis when configured).

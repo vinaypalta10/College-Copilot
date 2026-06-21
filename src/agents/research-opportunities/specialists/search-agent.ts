@@ -37,6 +37,18 @@ export async function runSearch(input: SearchAgentInput): Promise<SearchAgentOut
   const seen = new Set<string>();
 
   for (const source of input.sources) {
+    // A specific lab or faculty page IS the opportunity — don't explode its nav
+    // into "Publications/Members/…". Index/REU pages are listings, so we expand
+    // those into their individual program links.
+    if (source.kind === "lab" || source.kind === "faculty") {
+      if (!seen.has(source.url)) {
+        seen.add(source.url);
+        hits.push({ url: source.url, label: source.name, sourceName: source.name, sourceKind: source.kind });
+      }
+      steps.push({ agent: "research-search-agent", ok: true, summary: `${source.name}: kept as one ${source.kind} opportunity.` });
+      continue;
+    }
+
     const page = await fetchPage(source.url);
     if (!page.ok) {
       steps.push({ agent: "research-search-agent", ok: false, summary: `${source.name}: ${page.error ?? "unreachable"}` });

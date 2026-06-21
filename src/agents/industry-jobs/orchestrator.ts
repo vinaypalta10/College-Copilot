@@ -38,6 +38,13 @@ export interface JobResultRow {
   url: string;
 }
 
+/** Small matched-term count fed to scoreOpportunity as a relevance signal. */
+function relevanceCount(j: NormalizedJob, terms: string[]): number {
+  if (!terms.length) return 0;
+  const hay = `${j.title} ${j.requiredSkills.join(" ")} ${j.preferredSkills.join(" ")} ${j.evidence ?? ""}`.toLowerCase();
+  return terms.filter((t) => hay.includes(t)).length;
+}
+
 export interface JobOrchestratorOutput {
   mode: "live-agent";
   memory: "redis" | "redis-rest" | "disabled";
@@ -57,7 +64,7 @@ function dedupeJobs(jobs: NormalizedJob[]): NormalizedJob[] {
   });
 }
 
-function toTargetRow(j: NormalizedJob, priority: number): TargetRow {
+function toTargetRow(j: NormalizedJob, priority: number, score: number): TargetRow {
   const now = new Date().toISOString();
   const fit = j.requiredSkills.length ? `Needs: ${j.requiredSkills.slice(0, 5).join(", ")}.` : `${j.employmentType.replace("_", " ")} opening.`;
   return {
@@ -73,7 +80,7 @@ function toTargetRow(j: NormalizedJob, priority: number): TargetRow {
     source: j.url,
     notes: `Discovered by industry-jobs pipeline from ${j.source}.`,
     evidence: j.evidence ?? null,
-    score: 0,
+    score,
     score_facets: JSON.stringify({
       source: j.source, employmentType: j.employmentType, location: j.location,
       requiredSkills: j.requiredSkills, preferredSkills: j.preferredSkills,
@@ -125,10 +132,13 @@ export async function discoverIndustryJobs(input: JobSearchInput, ctx: AgentCont
   const digested = await digestJobs({ jobs: unique });
   record("jd-digest-agent", true, digested.summary);
 
-  const jobs = digested.jobs;
+  // Rank by query relevance so the best survive; the API re-scores via
+  // scoreOpportunity, using this relevance count as a signal.
+  const terms = query.toLowerCase().split(/[^a-z0-9+.#]+/).filter((t) => t.length > 2);
+  const jobs = [...digested.jobs].sort((a, b) => relevanceCount(b, terms) - relevanceCount(a, terms));
 
   // Persist for the draft endpoint + downstream resume/networking agents.
-  jobs.forEach((j, i) => ctx.repo.upsertTarget(toTargetRow(j, i + 1)));
+  jobs.forEach((j, i) => ctx.repo.upsertTarget(toTargetRow(j, i + 1, relevanceCount(j, terms))));
   record("result-cache", true, `Cached ${jobs.length} job(s) for resume prompts and networking.`);
 
   const memory = await rememberAgentEvent({
