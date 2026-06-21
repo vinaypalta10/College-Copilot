@@ -1,0 +1,112 @@
+/**
+ * Maps Berkeley major names to the subject codes that most directly belong to
+ * that program. Requirements still drive the strongest ranking signal; this
+ * mapping provides a sensible major-level prior across the full catalog.
+ */
+
+const EXACT: Record<string, string[]> = {
+  "computer science": ["COMPSCI", "EECS", "DATA", "MATH"],
+  "data science": ["DATA", "DATASCI", "STAT", "COMPSCI", "MATH"],
+  "statistics": ["STAT", "MATH", "DATA"],
+  "business administration (undergraduate business program)": ["UGBA", "ECON", "STAT", "MATH"],
+  "management, entrepreneurship, and technology (m.e.t.)*": ["UGBA", "ENGIN", "ECON"],
+  "global management program (gmp)*": ["UGBA", "ECON", "GLOBAL"],
+  "robinson life science, business, and entrepreneurship program*": ["UGBA", "BIOLOGY", "MCELLBI", "INTEGBI"],
+  "chemistry": ["CHEM"],
+  "chemical biology": ["CHEM", "MCELLBI", "BIOLOGY"],
+  "chemical engineering": ["CHMENG", "CHEM", "ENGIN"],
+  "applied mathematics": ["MATH", "STAT"],
+  "mathematics": ["MATH"],
+  "analytics": ["STAT", "DATA", "INDENG", "MATH"],
+  "astrophysics (including astronomy)": ["ASTRON", "PHYSICS", "MATH"],
+  "physics": ["PHYSICS", "MATH"],
+  "earth and planetary science": ["EPS"],
+  "economics": ["ECON", "STAT", "MATH"],
+  "political economy": ["POLECON", "ECON", "POLSCI"],
+  "political science": ["POLSCI"],
+  "psychology": ["PSYCH"],
+  "cognitive science": ["COGSCI", "COMPSCI", "PSYCH", "LINGUIS", "PHILOS"],
+  "public health": ["PBHLTH"],
+  "neuroscience": ["NEU", "MCELLBI", "PSYCH"],
+  "molecular and cell biology": ["MCELLBI", "BIOLOGY", "CHEM"],
+  "integrative biology": ["INTEGBI", "BIOLOGY"],
+  "architecture": ["ARCH", "ENVDES"],
+  "landscape architecture": ["LDARCH", "ENVDES"],
+  "sustainable environmental design": ["ENVDES", "ARCH", "CYPLAN"],
+  "urban studies": ["CYPLAN", "ENVDES"],
+  "environmental economics and policy": ["ENVECON", "ECON", "ESPM"],
+  "environmental sciences": ["ESPM", "EPS", "CHEM"],
+  "environmental engineering science": ["CIVENG", "ESPM", "ENGIN"],
+  "conservation and resource studies": ["ESPM", "NATRES"],
+  "ecosystem management and forestry": ["ESPM", "NATRES"],
+  "genetics and plant biology": ["PLANTBI", "MCELLBI"],
+  "microbial biology": ["MCELLBI", "PLANTBI"],
+  "molecular environmental biology": ["ESPM", "MCELLBI"],
+  "nutritional sciences": ["NUSCTX"],
+  "society and environment": ["ESPM", "ENVECON"],
+  "aerospace engineering": ["AEROENG", "AEROSPC", "ENGIN"],
+  "bioengineering": ["BIOENG", "ENGIN"],
+  "civil engineering": ["CIVENG", "ENGIN"],
+  "electrical and computer engineering": ["ELENG", "EECS", "COMPSCI"],
+  "electrical engineering & computer sciences": ["EECS", "ELENG", "COMPSCI"],
+  "engineering mathematics and statistics": ["MATH", "STAT", "ENGIN"],
+  "engineering physics": ["PHYSICS", "ENGIN", "MATH"],
+  "industrial engineering and operations research": ["INDENG", "ENGIN", "STAT"],
+  "materials science and engineering": ["MATSCI", "ENGIN"],
+  "mechanical engineering": ["MECENG", "ENGIN"],
+  "nuclear engineering": ["NUCENG", "ENGIN"],
+};
+
+const RULES: Array<[RegExp, string[]]> = [
+  [/business administration/i, ["UGBA", "ECON", "STAT"]],
+  [/engineering.*business|business.*engineering/i, ["UGBA", "ENGIN"]],
+  [/art, history|history of art/i, ["HISTART"]],
+  [/art, practice|art practice/i, ["ART"]],
+  [/ancient greek|greek and latin/i, ["CLASSIC", "GREEK", "LATIN"]],
+  [/\bgreek\b/i, ["GREEK", "CLASSIC"]],
+  [/\blatin\b/i, ["LATIN", "CLASSIC"]],
+  [/east asian|chinese|japanese|korean/i, ["EALANG", "CHINESE", "JAPAN", "KOREAN"]],
+  [/middle eastern|near eastern/i, ["MELC", "ARABIC", "HEBREW", "PERSIAN"]],
+  [/slavic|armenian|czech|hungarian|polish|russian/i, ["SLAVIC", "ARMENI", "POLISH", "RUSSIAN"]],
+  [/south and southeast asian/i, ["SASIAN", "SEASIAN"]],
+  [/spanish|portuguese|latin american languages/i, ["SPANISH", "PORTUG"]],
+  [/theater|dance|performance/i, ["THEATER"]],
+  [/english/i, ["ENGLISH"]],
+  [/film|media/i, ["FILM", "MEDIAST"]],
+  [/french/i, ["FRENCH"]],
+  [/german/i, ["GERMAN"]],
+  [/italian/i, ["ITALIAN"]],
+  [/music/i, ["MUSIC"]],
+  [/philosophy/i, ["PHILOS"]],
+  [/rhetoric/i, ["RHETOR"]],
+  [/comparative literature/i, ["COMLIT"]],
+  [/celtic/i, ["CELTIC"]],
+  [/dutch/i, ["DUTCH"]],
+  [/scandinavian|danish|finnish|norwegian|swedish|old norse/i, ["SCANDIN", "DANISH", "FINNISH", "NORWEGN", "SWEDISH"]],
+  [/anthropology/i, ["ANTHRO"]],
+  [/african american/i, ["AFRICAM"]],
+  [/american studies/i, ["AMERSTD"]],
+  [/asian american/i, ["ASAMST"]],
+  [/chicanx|latinx/i, ["CHICANO"]],
+  [/education/i, ["EDUC"]],
+  [/ethnic studies/i, ["ETHSTD"]],
+  [/gender|women/i, ["GWS"]],
+  [/geography/i, ["GEOG"]],
+  [/global studies/i, ["GLOBAL"]],
+  [/history/i, ["HISTORY"]],
+  [/linguistics/i, ["LINGUIS"]],
+  [/social welfare/i, ["SOCWEL"]],
+  [/sociology/i, ["SOCIOL"]],
+  [/legal studies/i, ["LEGALST"]],
+  [/interdisciplinary studies/i, ["ISF", "UGIS"]],
+];
+
+export function subjectsForMajor(major?: string | null): string[] {
+  if (!major) return [];
+  const normalized = major.trim().toLowerCase();
+  const exact = EXACT[normalized];
+  if (exact) return exact;
+
+  const matches = RULES.filter(([pattern]) => pattern.test(major)).flatMap(([, subjects]) => subjects);
+  return [...new Set(matches)];
+}

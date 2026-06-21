@@ -34,6 +34,7 @@ function runMigrations(db: DB): void {
   ensureColumn(db, "sources", "category", "TEXT DEFAULT 'research'");
   ensureColumn(db, "courses", "prerequisites", "TEXT");
   ensureColumn(db, "courses", "avg_gpa", "REAL");
+  ensureColumn(db, "student_profiles", "college", "TEXT");
 
   // Backfill category for pre-existing rows from the latent path/kind signal.
   db.exec(`UPDATE targets SET category = 'industry'

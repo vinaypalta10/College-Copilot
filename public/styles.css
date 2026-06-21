@@ -69,6 +69,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 
 /* Course cards */
 .course-list { display: grid; gap: 12px; }
+.load-more { display: block; margin: 18px auto 0; min-width: 180px; }
 .course-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; }
 .course-card h3 { font-size: 15.5px; }
 .course-code { color: var(--accent); font-weight: 700; }
@@ -84,6 +85,8 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 .score-badge.s-mid { background: color-mix(in srgb, var(--warn) 20%, var(--card)); color: var(--warn); }
 .score-badge.s-lo { background: color-mix(in srgb, var(--bad) 18%, var(--card)); color: var(--bad); }
 .card-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
+.course-catalog-link { display: inline-flex; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--accent); text-decoration: none; font-size: 13.5px; }
+.course-catalog-link:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
 .desc { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
 
 /* Profile */
@@ -94,6 +97,9 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 #profileForm label { display: grid; gap: 5px; font-size: 13px; color: var(--muted); }
 #profileForm input, #profileForm select { font-size: 14.5px; color: var(--ink); }
 #profileForm .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.academic-selection { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--brand) 4%, var(--card)); }
+.academic-selection select { width: 100%; min-height: 42px; }
+.field-help { margin: -8px 2px 0; color: var(--muted); font-size: 12.5px; }
 
 /* Schedule */
 .schedule-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -114,3 +120,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 10px; box-shadow: var(--shadow); z-index: 50; opacity: 0; transition: .2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 [hidden] { display: none !important; }
+
+@media (max-width: 640px) {
+  .academic-selection, #profileForm .row { grid-template-columns: 1fr; }
+}

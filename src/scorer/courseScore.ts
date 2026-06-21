@@ -8,10 +8,11 @@
  */
 
 import type { CourseRow, SectionRow, InstructorRow } from "../db/repo.ts";
+import { subjectsForMajor } from "./majorSubjects.ts";
 
 export interface StudentPrefs {
   major?: string | null;
-  interests?: string[];
+  interests?: string[];                 // research/opportunity ranking only
   completedCourses?: string[];          // e.g. ["COMPSCI 61A"]
   requirementsRemaining?: string[];     // free-text labels
   timePrefs?: { earliest?: string; latest?: string; daysOff?: string[] };
@@ -28,7 +29,7 @@ export interface CourseCandidate {
 export interface FitResult {
   score: number;
   reasons: string[];
-  flags: { requirementMatch: boolean; timeConflict: boolean; belowMinRating: boolean; completed: boolean };
+  flags: { majorMatch: boolean; requirementMatch: boolean; timeConflict: boolean; belowMinRating: boolean; completed: boolean };
   workload: { estimate: "light" | "medium" | "heavy"; rationale: string };
 }
 
@@ -74,7 +75,7 @@ export function estimateWorkload(c: CourseCandidate): FitResult["workload"] {
 
 export function scoreCourse(c: CourseCandidate, prefs: StudentPrefs): FitResult {
   const reasons: string[] = [];
-  const flags = { requirementMatch: false, timeConflict: false, belowMinRating: false, completed: false };
+  const flags = { majorMatch: false, requirementMatch: false, timeConflict: false, belowMinRating: false, completed: false };
   let score = 50;
 
   const courseLabel = `${c.course.subject} ${c.course.number}`;
@@ -86,6 +87,18 @@ export function scoreCourse(c: CourseCandidate, prefs: StudentPrefs): FitResult 
     return { score: 0, reasons: ["You've already completed this course."], flags, workload: estimateWorkload(c) };
   }
 
+  // Major match provides a broad program-level prior. Degree requirements,
+  // supplied separately below, remain the strongest academic signal.
+  const majorSubjects = subjectsForMajor(prefs.major);
+  const majorSubjectIndex = majorSubjects.indexOf(c.course.subject.toUpperCase());
+  if (majorSubjectIndex !== -1) {
+    flags.majorMatch = true;
+    score += majorSubjectIndex === 0 ? 20 : 12;
+    reasons.push(majorSubjectIndex === 0
+      ? `Core subject for your ${prefs.major} major.`
+      : `Related to your ${prefs.major} major.`);
+  }
+
   // Requirement match.
   for (const req of prefs.requirementsRemaining ?? []) {
     const tokens = norm(req).split(/[^A-Z0-9]+/).filter(t => t.length > 2);
@@ -93,17 +106,10 @@ export function scoreCourse(c: CourseCandidate, prefs: StudentPrefs): FitResult 
       (c.course.requirements_satisfied ?? "").toUpperCase().includes(norm(req));
     if (hit) {
       flags.requirementMatch = true;
-      score += 22;
+      score += 26;
       reasons.push(`Helps satisfy "${req}".`);
       break;
     }
-  }
-
-  // Interest match.
-  const interestHits = (prefs.interests ?? []).filter(k => haystack.includes(norm(k)));
-  if (interestHits.length) {
-    score += Math.min(15, interestHits.length * 8);
-    reasons.push(`Matches your interest in ${interestHits.join(", ")}.`);
   }
 
   // Professor rating.
