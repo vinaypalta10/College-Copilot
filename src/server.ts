@@ -1,3 +1,4 @@
+import "./lib/loadEnv.ts";
 import express from "express";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
