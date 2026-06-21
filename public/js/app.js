@@ -615,10 +615,12 @@ async function searchProfessors() {
   }
 }
 
+const anonymousProfessorAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Crect width='72' height='72' fill='%23f4f4f5'/%3E%3Ccircle cx='36' cy='26' r='14' fill='%23c7c7d0'/%3E%3Cpath d='M18 64c0-10 8-18 18-18s18 8 18 18H18z' fill='%23c7c7d0'/%3E%3C/svg%3E";
+
 function renderProfessors(root, professors) {
   root.innerHTML = professors.map((p, index) => `
     <article class="course-card professor-card" data-professor="${index}">
-      ${p.imageUrl ? `<img class="professor-avatar" src="${esc(p.imageUrl)}" alt="${esc(p.name)}" loading="lazy">` : ""}
+      <img class="professor-avatar" src="${esc(p.imageUrl || anonymousProfessorAvatar)}" alt="${esc(p.imageUrl ? p.name : "Anonymous professor")}" loading="lazy">
       <div>
         <h3>${esc(p.name)}</h3>
         <div class="course-meta">
