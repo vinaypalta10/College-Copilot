@@ -411,6 +411,16 @@ $("#buildScheduleBtn").addEventListener("click", async () => {
   } catch (err) { toast(`Auto-build: ${err.message}`); }
 });
 
+$("#clearScheduleBtn").addEventListener("click", () => {
+  if (!state.cart.length) return toast("The schedule is already empty.");
+  state.cart = [];
+  saveCart();
+  renderCart();
+  renderCalendar();
+  refreshCourses();
+  toast("Schedule cleared.");
+});
+
 $("#savePlanBtn").addEventListener("click", async () => {
   const name = $("#planName").value.trim() || "Untitled plan";
   const sectionIds = state.cart.map(x => x.section?.id).filter(Boolean);
