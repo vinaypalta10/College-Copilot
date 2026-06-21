@@ -29,6 +29,7 @@ export interface ProfessorResult {
   source: string;
   sourceName: string;
   score: number;
+  imageUrl?: string | null;
 }
 
 function stripTags(html: string): string {
@@ -55,6 +56,12 @@ function absolutize(href: string, base: string): string | null {
 function stableId(url: string, name: string): string {
   const hash = createHash("sha1").update(`${url}:${name}`).digest("hex").slice(0, 12);
   return `prof_${hash}`;
+}
+
+function findListPageProfessorPhoto(chunk: string, baseUrl: string): string | null {
+  const match = chunk.match(/<img[^>]+src=["']([^"']*\/Faculty\/Photos\/Homepages\/[^"']+)["'][^>]*>/i);
+  if (!match?.[1]) return null;
+  return absolutize(match[1], baseUrl);
 }
 
 function termsFor(input: ProfessorSearchInput): string[] {
@@ -106,13 +113,23 @@ export function parseEecsFacultyList(html: string, source: FacultySource): Profe
       source: url || source.url,
       sourceName: source.name,
       score: 0,
+      imageUrl: findListPageProfessorPhoto(chunk, source.url),
     });
   }
 
   return rows;
 }
 
-export function parseEecsFacultyBio(html: string): { bio: string; field: string | null; email: string | null; title: string | null } {
+function findProfessorImageUrl(html: string, baseUrl?: string): string | null {
+  const matches = [...html.matchAll(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi)].map(match => match[1].trim());
+  const homepageImages = matches
+    .map(src => absolutize(src, baseUrl || ""))
+    .filter((src): src is string => Boolean(src))
+    .filter(src => /\/Faculty\/Photos\/Homepages\//i.test(src));
+  return homepageImages[0] || null;
+}
+
+export function parseEecsFacultyBio(html: string, baseUrl?: string): { bio: string; field: string | null; email: string | null; title: string | null; imageUrl: string | null } {
   const email = stripTags(html).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
   const title = stripTags(html.match(/<h2[^>]*>[\s\S]*?<\/h2>\s*<h3[^>]*>([\s\S]*?)<\/h3>/i)?.[1] || "") || null;
   const bio = stripTags(
@@ -125,11 +142,13 @@ export function parseEecsFacultyBio(html: string): { bio: string; field: string 
     html.match(/Research Areas([\s\S]*?)(?:Research Centers|Selected Publications|Selected Honors)/i)?.[1] ||
     "",
   );
+  const imageUrl = findProfessorImageUrl(html, baseUrl);
   return {
     bio: bio || "",
     field: field || null,
     email,
     title: title || null,
+    imageUrl,
   };
 }
 
@@ -169,11 +188,12 @@ export async function searchBerkeleyProfessors(input: ProfessorSearchInput): Pro
   await Promise.all(ranked.slice(0, 8).map(async professor => {
     try {
       const detail = await fetchHtml(professor.source);
-      const parsed = parseEecsFacultyBio(detail);
+      const parsed = parseEecsFacultyBio(detail, professor.source);
       if (parsed.bio) professor.bio = parsed.bio;
       if (parsed.field) professor.field = parsed.field;
       if (parsed.email) professor.email = parsed.email;
       if (parsed.title) professor.title = parsed.title;
+      if (parsed.imageUrl) professor.imageUrl = parsed.imageUrl;
     } catch {
       // The list page already contains the key contact/research fields.
     }

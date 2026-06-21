@@ -106,6 +106,8 @@ function switchTab(name) {
   $("#opportunitiesMenuBtn").classList.toggle("active", name === "professors" || name === "programs" || name === "jobs");
   $(".tab-menu")?.classList.remove("open");
   $("#opportunitiesMenuBtn").setAttribute("aria-expanded", "false");
+  $(".tab-submenu.open")?.classList.remove("open");
+  $(".submenu-trigger")?.setAttribute("aria-expanded", "false");
   $$(".panel-view").forEach(v => v.hidden = v.dataset.view !== name);
   if (name === "schedule") renderCalendar();
   if (name === "professors") initProfessorPanel();
@@ -121,10 +123,19 @@ $("#opportunitiesMenuBtn").addEventListener("click", () => {
   const open = menu.classList.toggle("open");
   $("#opportunitiesMenuBtn").setAttribute("aria-expanded", String(open));
 });
+$(".submenu-trigger")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const submenu = e.target.closest(".tab-submenu");
+  if (!submenu) return;
+  const open = submenu.classList.toggle("open");
+  e.target.setAttribute("aria-expanded", String(open));
+});
 document.addEventListener("click", (e) => {
   if (e.target.closest(".tab-menu")) return;
   $(".tab-menu")?.classList.remove("open");
   $("#opportunitiesMenuBtn").setAttribute("aria-expanded", "false");
+  $(".tab-submenu.open")?.classList.remove("open");
+  $(".submenu-trigger")?.setAttribute("aria-expanded", "false");
 });
 
 // ───────── Theme ─────────
@@ -607,6 +618,7 @@ async function searchProfessors() {
 function renderProfessors(root, professors) {
   root.innerHTML = professors.map((p, index) => `
     <article class="course-card professor-card" data-professor="${index}">
+      ${p.imageUrl ? `<img class="professor-avatar" src="${esc(p.imageUrl)}" alt="${esc(p.name)}" loading="lazy">` : ""}
       <div>
         <h3>${esc(p.name)}</h3>
         <div class="course-meta">
