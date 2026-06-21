@@ -1,195 +1,77 @@
 # College Copilot
 
-A multi-user agent for UC Berkeley students that does the tedious cross-referencing nobody
-enjoys: filtering classes by **remaining requirements**, **RateMyProfessors rating**,
-**workload**, and **time constraints**, then letting students add choices to a conflict-checked calendar — and
-finding **research opportunities** worth a warm outreach email.
+Getting into UC Berkeley is hard. Navigating it can be even harder. After earning a place at a top public university, students face scattered course catalogs, outdated opportunity pages, professor directories, and job boards. They may know what they want to become without knowing which classes to take, whom to work with, or which opportunities are actually relevant.
 
-Students normally have many constraints but scattered information; College Copilot gathers it
-for them and ranks every class against their profile with a plain-language "why this matches".
+**College Copilot turns that information overload into a personalized path from coursework to research to industry.** Clone the repository, sign in, describe your goals and constraints, and explore Berkeley resources from one local workspace. A guided demo is coming soon.
 
-> Pivoted from an earlier internship-outreach tool; the current local data is cleaned down to
-> Berkeley course data plus curated research/industry opportunities for College Copilot.
+## What It Does
 
-## Project status (hackathon — ~20 hrs total)
+- **Plan courses:** Rank Berkeley classes against remaining requirements, interests, professor ratings, workload, time constraints, and open seats.
+- **Find research:** Discover professors, labs, and undergraduate research opportunities, then prepare outreach for the student to review.
+- **Explore industry:** Normalize job postings, digest qualifications, generate resume-tailoring prompts, and identify possible networking leads.
+- **Explain every result:** Show fit scores, evidence, warnings, and an agent trace instead of returning an unexplained answer.
 
-**Team docs:** [ROADMAP.md](ROADMAP.md) (hour-by-hour build plan) · [SPONSORS.md](SPONSORS.md) (sponsor integration tracker — fill this in).
+## Why These Tracks
 
-### ✅ Built so far (working prototype)
-- **Auth & multi-user** — Google OAuth + DB-backed sessions, with keyless **dev-login** for local demos.
-- **Berkeley course ingestion** — Berkeleytime (catalog, sections, grades) + RateMyProfessors enrichment.
-- **Explainable ranking** — every class scored 0-100 vs. your profile with reasons (requirement, RMP, workload, time).
-- **Advisor** — natural-language search ("CS, mornings, light workload, ≥3.5 prof") → re-ranked results.
-- **Scheduling** — manually add recommended courses → conflict-checked weekly calendar → saved plans.
-- **Research tab** — run opportunity agents that fetch live sources and draft outreach.
-- **Quality** — deterministic scorer + conflict detection covered by unit tests.
-- **Redis catalog cache** — the whole Berkeley catalog (40 subjects, ~1,400 courses) is cached
-  in Redis as a read-through snapshot so the advisor/Discover hot path doesn't rebuild its
-  candidate set from SQLite on every request. Falls back to SQLite when Redis is absent.
+### Anthropic: Educational and Economic Opportunity
 
-### 🎯 Next 2 hours → demo-ready v1 (for the sponsor walkthrough)
-Goal: a smooth, bug-free **happy path** to show. See [ROADMAP.md](ROADMAP.md) for task split.
-1. **Browser click-through** of the full flow (sign in → preferences → discover → advisor → schedule). Fix any UI breakage — not yet verified in a real browser.
-2. **Import more subjects** (`COMPSCI,DATA,STAT,MATH,EECS,PHYSICS`) so Discover looks rich.
-3. **Add the Claude key** (`ANTHROPIC_API_KEY`) so the advisor's NL parsing wows instead of the heuristic.
-4. **Seed a demo account** with a realistic profile so the first screen already shows great matches.
-5. **Polish empty/error states** and the calendar rendering.
+Built with Claude Code and powered by Claude when an API key is available, College Copilot helps students translate open-ended goals into concrete academic and career decisions. Claude understands natural-language intent and explains recommendations, while specialized agents and deterministic tools handle retrieval, policy interpretation, ranking, and conflict detection. This division makes AI useful where judgment and communication matter without asking it to invent facts that code can verify.
 
-### 🔭 Next 3 hours (after demo) → harden + sponsor hooks
-- Per-user research opportunities (real isolation) + richer lab/URAP sources.
-- Schedule discussion/lab sub-sections, not just lectures.
-- Wire the first sponsor integrations from [SPONSORS.md](SPONSORS.md).
-- Deploy a public URL so judges can try it.
+### The Token Company: Context Compression
 
-## Quick start
+An LLM should not need the entire course catalog to recommend eight classes. College Copilot retrieves and scores candidates first, then compresses course records, student constraints, requirement coverage, and policy warnings into a small context packet. The final explanation is generated only from that packet, and the API reports estimated tokens before and after compression, the compression ratio, and percentage saved. This reduces noise and token use while preserving the evidence needed for a high-quality recommendation.
+
+### Redis: Agent Memory and Vector Retrieval
+
+College Copilot uses Redis beyond conventional response caching. It stores a semantic vector index of Berkeley courses for context retrieval and records per-user research and job agent-memory events with bounded lifetimes, allowing independent agents to retain useful workflow context without passing entire histories to an LLM. The architecture combines deterministic embeddings and ranking, isolated key namespaces, health metrics, read-through retrieval, and a resilient SQLite fallback so Redis accelerates a scalable student workflow without becoming a single point of failure. Together, vector search and agent memory turn fragmented university data into a fast, personalized discovery experience for a real human problem.
+
+### Ddoski's World: Educational Access
+
+University resources may be public, but access to them is not equal. Students with experienced mentors and established networks know which courses matter, how to find research, and where to look for career opportunities; first-generation and under-networked students often must reconstruct that knowledge alone. College Copilot makes this hidden institutional knowledge searchable, personalized, and actionable, helping more students turn education into research experience and economic opportunity while keeping every consequential decision under their control.
+
+## Ethical Considerations
+
+College Copilot follows a **draft, explain, and confirm** model. Agents can surface public contact information and prepare outreach, but they never send emails, LinkedIn messages, applications, or connection requests automatically. Recommendations expose their evidence, label heuristic judgments, and do not claim to replace official academic advising or degree audits.
+
+User profiles, plans, and results are isolated behind authenticated sessions. Production deployments can restrict Google sign-in to verified `@berkeley.edu` accounts with `OAUTH_HOSTED_DOMAIN=berkeley.edu`; local development intentionally provides a clearly separated keyless login. We collect only the information needed to personalize results and keep consequential decisions with the student.
+
+## Brainstorming and Process
+
+College Copilot began as three ideas from three Berkeley students. Two freshmen proposed course planning and professor/research discovery; a junior proposed an industry-opportunity assistant. We realized these were not separate problems but three stages of the same student journey.
+
+Our iterations moved the project away from a single all-purpose chatbot. We separated each workflow into narrow agents, moved scoring and schedule conflicts into testable deterministic code, added compressed context and execution traces, introduced keyless fallbacks, and required human approval for outreach. The architecture reflects the decisions and constraints we encountered, not just an interface placed around an LLM.
+
+## The Ambitious Next Step: An Opportunity Graph
+
+Our next step is a living graph connecting:
+
+```text
+student goals
+  -> courses and prerequisites
+  -> skills
+  -> professors and labs
+  -> research opportunities
+  -> internships and jobs
+```
+
+A student could ask, *"I want to work in climate AI next summer. What should I take, whom should I learn from, and what should I apply to?"* College Copilot would produce an evidence-backed, semester-by-semester action plan, identify missing skills, monitor deadlines and stale listings, and prepare user-approved outreach. Each agent would receive only a compressed student context capsule, joining personalized guidance, token efficiency, and practical automation in one system.
+
+## Quick Start
 
 ```bash
-cp .env.example .env       # optional: add a provider key + Google OAuth (both have fallbacks)
+cp .env.example .env
 npm install
-npm run import:courses      # pull the full Fall 2026 catalog from Berkeleytime (+ RateMyProfessors)
-npm run import:professors   # cache official Berkeley faculty/contact/research profiles
-npm run dev                # http://localhost:4174
+npm run import:courses
+npm run import:professors
+npm run dev
 ```
 
-No keys are required to run:
-- **No Google OAuth** → local **dev-login** (email only) is enabled automatically outside production.
-- **No LLM key** → the advisor uses a keyword **heuristic** parser; scoring is fully deterministic.
+Open [http://localhost:4174](http://localhost:4174). API keys are optional: without Google OAuth the local app enables development login, and without an Anthropic key the advisor uses deterministic parsing and scoring fallbacks.
 
-To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAUTH_REDIRECT_URL`
-(optionally `OAUTH_HOSTED_DOMAIN=berkeley.edu` to restrict to campus accounts).
-
-## What it does
-
-1. **Sign in** (Google or dev-login) — multi-user, per-student data.
-2. **Set preferences** — major, completed courses, requirements remaining, interests, time
-   window, days off, workload tolerance, minimum professor rating.
-3. **Discover** — every class ranked by fit, each card showing units, instructor + RMP rating,
-   average GPA, workload estimate, requirement match, meeting time, open seats, and reasons.
-4. **Ask the Copilot** — e.g. *"CS upper-div, mornings, manageable workload, nothing below 3.5"* —
-   parsed into constraints, merged with your profile, re-ranked.
-5. **Schedule** — manually add recommended classes, see conflicts on a weekly calendar, and save plans.
-6. **Research** — browse lab / URAP opportunities and draft a warm outreach email (opens Gmail
-   compose; nothing sends automatically).
-
-## Scripts
-
-| Command | What it does |
-|---|---|
-| `npm run dev` | Watch-mode server on `$PORT` (default 4174). |
-| `npm start` | Same as dev without watch. |
-| `npm run import:courses` | Import all courses + sections + grades from Berkeleytime (the full catalog by default), enrich instructors from RateMyProfessors, then warm the Redis catalog cache + vector index. Optional flags: `--subjects COMPSCI,DATA --per-subject 35 --limit 60 --no-rmp`. Idempotent. |
-| `npm run import:professors` | Import and deduplicate public faculty profiles from Berkeley's campus-wide Faculty Expertise Finder plus department directory overlays. Follows every results page and enriches public contact/research details. Optional flags: `--no-details`, `--max-pages 3`, `--concurrency 4`. Idempotent. |
-| `npm run clean:legacy-data` | Remove cached opportunity rows while preserving courses, instructors, users, profiles, and plans. |
-| `npm test` | node:test suite (course scoring + calendar conflict detection are pure and unit-tested). |
-
-## Data sources (UC Berkeley)
-
-- **Berkeleytime** GraphQL (`berkeleytime.com/api/graphql`) — catalog, sections, meeting times,
-  enrollment, and grade distributions. Primary source, no key required.
-- **RateMyProfessors** GraphQL — instructor rating / difficulty / would-take-again, cached on the
-  `instructors` table (30-day TTL), rate-limited.
-- **UC Berkeley SIS Class/Course API** (`developers.api.berkeley.edu`) — optional official
-  upgrade behind a CalNet-issued key (stub; not required).
-- **UC Berkeley Faculty Expertise Finder** (`vcresearch.berkeley.edu/faculty-expertise`) —
-  campus-wide professor, department, research-interest, profile, and public contact data.
-- **Official department faculty directories** — merged as coverage overlays for faculty omitted
-  from the central finder. Current adapters cover EECS/Computer Science, Statistics, Mathematics,
-  Integrative Biology, Molecular & Cell Biology, Physics, and English. History, Chemistry, and
-  other departments remain covered by the campus-wide finder and can receive overlays as needed.
-
-## Caching (Redis)
-
-The advisor and Discover re-rank the **entire** catalog against your profile on every request.
-That ranking is per-user, but its inputs — all courses + the term's sections — are identical
-across users and only change on re-import, so they're cached in Redis.
-
-- Set `REDIS_URL` (e.g. `redis://localhost:6379` or a Redis Cloud URL) to enable it.
-- `src/db/courseCache.ts` is a **read-through cache**: a request reads `cc:catalog:<term>` from
-  Redis; on a miss it builds the snapshot from SQLite and writes it back (30-min TTL, configurable
-  via `REDIS_CATALOG_TTL`). `npm run import:courses` warms the cache at the end.
-- **Resilient by design** (`src/db/redis.ts`): no `REDIS_URL`, an unreachable host, or a mid-flight
-  error all fall back to SQLite — Redis is an accelerator, never a single point of failure.
-- Instructor RMP ratings are intentionally read live from SQLite (not cached here) so lazily
-  enriched ratings appear immediately.
-- `GET /api/healthz` reports `redis.connected` plus catalog cache + vector index `hits/misses/builds`
-  so you can watch the cache working in the demo.
-
-### Semantic course search (Redis as a vector store)
-
-Beyond caching, Redis backs a **semantic "find classes like…" search**. Every course is embedded
-into a dense vector; the whole index is cached in Redis (`cc:vecidx:<term>`), and a query is embedded
-the same way and ranked by cosine similarity.
-
-- `GET /api/courses?q=<text>&semantic=true` → courses ranked by embedding similarity (each result
-  carries a `similarity` score), then enriched with the deterministic fit score. Without `semantic=true`
-  the endpoint keeps its substring keyword search.
-- KNN is computed in Node over the cached vectors, so it runs on **any** Redis — no RediSearch / Redis
-  Stack module required. Redis is the durable vector store the hot path reads from.
-- The embedder (`src/lib/embed.ts`) is keyless and offline by default (a hashed TF-IDF embedding —
-  strong lexical retrieval) and **pluggable**: swap in a hosted neural embedder at the same dimension
-  and the Redis store + KNN are unchanged. Falls back to building the index from SQLite with no Redis.
-- `npm run import:courses` warms the vector index alongside the catalog cache.
-
-Example: `…?q=machine%20learning%20and%20neural%20networks&semantic=true` surfaces COMPSCI 189,
-INDENG 142A, and Statistical Learning Theory; `…?q=climate%20change%20and%20sustainability` surfaces
-ENVECON Climate Change Economics, GEOG Global Climate Change, and ANTHRO Climate Change.
-
-## Layout
-
-```
-src/
-  server.ts            Express entry; mounts routes, session middleware
-  auth/                Google OAuth flow + DB-backed cookie sessions
-  api/                 Route handlers (zod-validated): auth, profile, courses,
-                       advisor, plans, schedule, opportunities
-  ingest/              berkeleytime.ts (catalog) + ratemyprofessors.ts (ratings)
-                       + berkeleyFaculty.ts (campus + department faculty importer)
-  scorer/              courseScore.ts (fit, explainable) + candidates.ts (ranking)
-                       + scheduleBuilder.ts (conflict-free assembly)
-  agents/              three-agent course planner: query, policy, evaluation
-  skills/              professor-rating + registry
-  providers/           Claude API (Anthropic) abstraction for advisor
-  db/                  SQLite schema + typed repo (better-sqlite3) + migrations;
-                       redis.ts (resilient client) + courseCache.ts (read-through catalog cache)
-                       + vectorStore.ts (Redis-backed embeddings for semantic search)
-  lib/                 embed.ts (keyless hashed TF-IDF embedder) + log, rateLimit, validate, …
-  scripts/             import-courses, import-opportunities, clean-legacy-data
-public/
-  index.html  styles.css  js/app.js   (vanilla ES-module SPA: login, profile, discover,
-                                        schedule, research)
-tests/                 node:test suites
-data/outreach.db       SQLite store (gitignored; override with COLLEGE_COPILOT_DB_PATH)
+```bash
+npm test
 ```
 
-## Environment
+## Stack
 
-Full list with comments in `.env.example`. Highlights:
-
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAUTH_REDIRECT_URL` — Google Sign-In (local development falls back to dev-login).
-- `OAUTH_HOSTED_DOMAIN` — optional, restrict sign-in to one email domain.
-- `COURSE_TERM` — default term (e.g. `fall-2026`). *Named `COURSE_TERM`, not `TERM`, to avoid the shell's `$TERM`.*
-- `ANTHROPIC_API_KEY` — Claude API; powers the advisor's NL parsing (heuristic fallback when absent).
-- `DEEPGRAM_API_KEY` / `DEEPGRAM_MODEL=nova-3` — optional speech-to-text for mic buttons beside text prompts.
-- `REDIS_URL` — enables the Redis course-catalog cache (SQLite fallback when absent/unreachable).
-  Optional `REDIS_CATALOG_TTL` (seconds, default 1800).
-
-## Notable behaviors
-
-- **Explainable ranking**: `scoreCourse` is a pure function returning a 0-100 fit plus
-  human-readable reasons and flags — easy to test and to show in the UI.
-- **Resilient ingestion**: RateMyProfessors misses never fail a course import; the advisor
-  degrades from LLM parsing to a keyword heuristic without a key.
-- **Storage**: SQLite (WAL). Sessions are opaque DB-backed tokens in httpOnly cookies.
-- **Safety**: research outreach never sends automatically — the final action opens Gmail compose.
-
-## Known limitations / next steps
-
-- Imports the lecture (primary) section per course; discussion/lab sub-sections aren't yet
-  scheduled individually.
-- Research and job search results are isolated per user. Older unowned cache rows are retained
-  for migration safety but are not exposed through the multi-user API.
-- Requirement matching is text-based against the student's stated remaining requirements; it does
-  not yet parse official degree audits.
-- Berkeley does not publish one complete public faculty API. The importer combines the broad
-  campus expertise finder with official department overlays; its source list should be expanded
-  when a department is found to omit faculty from the campus index.
+TypeScript, Node.js, Express, Claude, SQLite, Redis, Zod, Google OAuth, and a vanilla JavaScript frontend. See [`src/agents`](src/agents/README.md) for the agent architecture and [`ROADMAP.md`](ROADMAP.md) for current implementation status.

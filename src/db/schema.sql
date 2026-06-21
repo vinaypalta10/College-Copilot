@@ -33,6 +33,34 @@ CREATE TABLE IF NOT EXISTS decisions (
   recipient   TEXT
 );
 
+-- Industry jobs live in their own table, NOT in `targets`. Job postings need a
+-- structured digest (skills/responsibilities/qualifications), resume targeting,
+-- and networking support that the research opportunity model intentionally omits.
+CREATE TABLE IF NOT EXISTS jobs (
+  id                   TEXT PRIMARY KEY,
+  user_id              TEXT,
+  title                TEXT NOT NULL,
+  company              TEXT NOT NULL,
+  location             TEXT NOT NULL,
+  url                  TEXT NOT NULL,
+  employment_type      TEXT NOT NULL,             -- internship | new_grad | part_time | full_time
+  source               TEXT NOT NULL,
+  required_skills      TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  preferred_skills     TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  responsibilities     TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  qualifications       TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  keywords             TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  application_deadline TEXT,
+  notes                TEXT,
+  description          TEXT,                       -- cleaned JD text used for the digest
+  score                INTEGER NOT NULL DEFAULT 0,
+  reasons              TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  extracted_at         TEXT,
+  last_seen_at         TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_user ON jobs(user_id, score);
+
 CREATE TABLE IF NOT EXISTS scan_log (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   started_at  TEXT NOT NULL,

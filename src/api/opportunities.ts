@@ -9,6 +9,11 @@ import { discoverOpportunities } from "../agents/opportunity-orchestrator.ts";
 const CATEGORIES = new Set(["research", "industry"]);
 
 function shape(t: TargetRow, fit: ReturnType<typeof scoreOpportunity>) {
+  let topics: string[] = [];
+  try {
+    const facets = JSON.parse(t.score_facets || "{}") as { topics?: unknown };
+    if (Array.isArray(facets.topics)) topics = facets.topics.filter((topic): topic is string => typeof topic === "string");
+  } catch { /* Older cached rows may not have structured facets. */ }
   return {
     id: t.id,
     name: t.name,
@@ -21,6 +26,7 @@ function shape(t: TargetRow, fit: ReturnType<typeof scoreOpportunity>) {
     evidence: t.evidence,
     fitScore: fit.score,
     reasons: fit.reasons,
+    topics,
   };
 }
 

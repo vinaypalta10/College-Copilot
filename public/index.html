@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>College Copilot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -48,7 +51,7 @@
               <button class="tab submenu-trigger" type="button" aria-haspopup="true" aria-expanded="false">Research</button>
               <div class="submenu-options">
                 <button class="tab" data-tab="professors">Find Professors</button>
-                <button class="tab" data-tab="programs">Programs</button>
+                <button class="tab" data-tab="programs">Research Labs</button>
               </div>
             </div>
             <button class="tab" data-tab="jobs">Jobs / Internships</button>
@@ -144,31 +147,31 @@
         <div id="professorList" class="course-list"></div>
       </section>
 
-      <!-- Programs -->
+      <!-- Research labs -->
       <section class="panel-view" data-view="programs" hidden>
-        <div class="research-head">
-          <h2>Research programs</h2>
-          <p class="muted">Ask the opportunity agents to search live Berkeley lab and URAP sources, then rank results against your profile.</p>
-          <div class="opportunity-search">
-            <input id="programsQuery" type="search" data-voice placeholder="e.g. machine learning systems, NLP, computational biology">
-            <button class="btn primary" data-find-opps="research">Find programs</button>
+        <div class="research-head labs-head">
+          <p class="eyebrow">Research opportunities</p>
+          <h2>Find a Berkeley lab</h2>
+          <p class="muted">Search by a topic you want to explore. We will show matching labs and their official pages.</p>
+          <div class="opportunity-search lab-search">
+            <input id="labsQuery" type="search" data-voice aria-label="Research topic" placeholder="Try machine learning, NLP, robotics, or systems">
+            <button class="btn primary" id="findLabsBtn">Find labs</button>
           </div>
         </div>
-        <div id="programsTrace" class="agent-trace" hidden></div>
-        <div id="programsList" class="course-list"></div>
+        <p id="labsStatus" class="labs-status" aria-live="polite"></p>
+        <div id="labsList" class="lab-list"></div>
       </section>
 
       <!-- Jobs / Industry -->
       <section class="panel-view" data-view="jobs" hidden>
         <div class="research-head">
           <h2>Jobs &amp; internships</h2>
-          <p class="muted">Ask the job agents to search live internship sources, then rank roles against your profile.</p>
+          <p class="muted">The job agents search live sources, normalize each posting into a fixed schema, digest the description, and rank roles against your profile. Generate a resume-tailoring prompt or networking leads per role — nothing is ever sent for you.</p>
           <div class="opportunity-search">
             <input id="jobsQuery" type="search" data-voice placeholder="e.g. AI internship, startup SWE, data engineering">
-            <button class="btn primary" data-find-opps="industry">Find jobs</button>
+            <button class="btn primary" id="findJobsBtn">Find jobs</button>
           </div>
         </div>
-        <div id="jobsTrace" class="agent-trace" hidden></div>
         <div id="jobsList" class="course-list"></div>
       </section>
 
@@ -219,6 +222,13 @@
     <article class="modal-panel">
       <button class="modal-close" type="button" aria-label="Close professor details">×</button>
       <div id="professorDialogBody"></div>
+    </article>
+  </dialog>
+
+  <dialog id="jobDialog" class="modal">
+    <article class="modal-panel">
+      <button class="modal-close" type="button" aria-label="Close">×</button>
+      <div id="jobDialogBody"></div>
     </article>
   </dialog>
 

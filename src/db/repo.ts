@@ -31,6 +31,29 @@ export interface DecisionRow {
   recipient: string | null;
 }
 
+export interface JobRow {
+  id: string;
+  user_id: string | null;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  employment_type: string;   // 'internship' | 'new_grad' | 'part_time' | 'full_time'
+  source: string;
+  required_skills: string;   // JSON: string[]
+  preferred_skills: string;  // JSON: string[]
+  responsibilities: string;  // JSON: string[]
+  qualifications: string;    // JSON: string[]
+  keywords: string;          // JSON: string[]
+  application_deadline: string | null;
+  notes: string | null;
+  description: string | null;
+  score: number;
+  reasons: string;           // JSON: string[]
+  extracted_at: string | null;
+  last_seen_at: string | null;
+}
+
 export interface ScanLogRow {
   id: number;
   started_at: string;
@@ -522,6 +545,50 @@ export class Repo {
     return this.db.prepare(
       `SELECT * FROM targets WHERE category = ? AND user_id = ? ORDER BY score DESC, priority ASC`,
     ).all(category, userId) as TargetRow[];
+  }
+
+  // ─── Industry jobs (separate data model from research targets) ───
+  upsertJob(row: JobRow): void {
+    this.db.prepare(`
+      INSERT INTO jobs (
+        id, user_id, title, company, location, url, employment_type, source,
+        required_skills, preferred_skills, responsibilities, qualifications, keywords,
+        application_deadline, notes, description, score, reasons, extracted_at, last_seen_at
+      ) VALUES (
+        @id, @user_id, @title, @company, @location, @url, @employment_type, @source,
+        @required_skills, @preferred_skills, @responsibilities, @qualifications, @keywords,
+        @application_deadline, @notes, @description, @score, @reasons, @extracted_at, @last_seen_at
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        user_id              = excluded.user_id,
+        title                = excluded.title,
+        company              = excluded.company,
+        location             = excluded.location,
+        url                  = excluded.url,
+        employment_type      = excluded.employment_type,
+        source               = excluded.source,
+        required_skills      = excluded.required_skills,
+        preferred_skills     = excluded.preferred_skills,
+        responsibilities     = excluded.responsibilities,
+        qualifications       = excluded.qualifications,
+        keywords             = excluded.keywords,
+        application_deadline = excluded.application_deadline,
+        notes                = excluded.notes,
+        description          = COALESCE(excluded.description, jobs.description),
+        score                = excluded.score,
+        reasons              = excluded.reasons,
+        last_seen_at         = excluded.last_seen_at
+    `).run(row);
+  }
+
+  listJobs(userId: string): JobRow[] {
+    return this.db.prepare(
+      `SELECT * FROM jobs WHERE user_id = ? ORDER BY score DESC, last_seen_at DESC`,
+    ).all(userId) as JobRow[];
+  }
+
+  getJobForUser(id: string, userId: string): JobRow | undefined {
+    return this.db.prepare(`SELECT * FROM jobs WHERE id = ? AND user_id = ?`).get(id, userId) as JobRow | undefined;
   }
 
   startScan(startedAt: string): number {
