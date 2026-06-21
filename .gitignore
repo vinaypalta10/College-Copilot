@@ -5,6 +5,11 @@ node_modules
 .DS_Store
 *.log
 
+# Local runtime database and SQLite sidecars
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
 # Legacy personal outreach data (excluded from the shared repo)
 data/targets.json
 data/sources.json

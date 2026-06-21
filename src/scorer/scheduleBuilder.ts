@@ -1,8 +1,7 @@
 /**
  * Schedule assembly — pure, deterministic, unit-testable.
  *
- * Detects meeting-time conflicts and greedily assembles a conflict-free
- * schedule from fit-ranked candidates, honoring a unit cap. No DB, no network.
+ * Detects meeting-time conflicts for manually assembled schedules.
  */
 
 export interface MeetingSlot {
@@ -47,25 +46,31 @@ export interface BuildResult {
   totalUnits: number;
 }
 
-/**
- * Greedy: consider sections by descending fit, add each unless it conflicts
- * with an already-chosen section or would exceed maxUnits. One section per course.
- */
+/** Assemble a conflict-free, unit-capped schedule from highest-fit sections. */
 export function buildSchedule(sections: SchedulableSection[], maxUnits = 18): BuildResult {
   const ordered = [...sections].sort((a, b) => b.fitScore - a.fitScore);
   const chosen: SchedulableSection[] = [];
   const skipped: BuildResult["skipped"] = [];
-  let totalUnits = 0;
   const usedCourses = new Set<string>();
+  let totalUnits = 0;
 
-  for (const s of ordered) {
-    if (usedCourses.has(s.courseId)) { skipped.push({ section: s, reason: "another section of this course is already chosen" }); continue; }
-    const conflict = chosen.find(c => slotsConflict(c.slot, s.slot));
-    if (conflict) { skipped.push({ section: s, reason: `conflicts with ${conflict.label}` }); continue; }
-    if (totalUnits + s.units > maxUnits) { skipped.push({ section: s, reason: `would exceed ${maxUnits}-unit cap` }); continue; }
-    chosen.push(s);
-    usedCourses.add(s.courseId);
-    totalUnits += s.units;
+  for (const section of ordered) {
+    if (usedCourses.has(section.courseId)) {
+      skipped.push({ section, reason: "another section of this course is already chosen" });
+      continue;
+    }
+    const conflict = chosen.find(existing => slotsConflict(existing.slot, section.slot));
+    if (conflict) {
+      skipped.push({ section, reason: `conflicts with ${conflict.label}` });
+      continue;
+    }
+    if (totalUnits + section.units > maxUnits) {
+      skipped.push({ section, reason: `would exceed ${maxUnits}-unit cap` });
+      continue;
+    }
+    chosen.push(section);
+    usedCourses.add(section.courseId);
+    totalUnits += section.units;
   }
 
   return { chosen, skipped, totalUnits };

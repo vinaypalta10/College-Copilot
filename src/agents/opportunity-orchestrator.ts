@@ -91,8 +91,8 @@ function absolutize(href: string, base: string): string | null {
   }
 }
 
-function stableId(category: string, url: string, title: string): string {
-  const hash = createHash("sha1").update(`${category}:${url}:${title}`).digest("hex").slice(0, 12);
+function stableId(userId: string, category: string, url: string, title: string): string {
+  const hash = createHash("sha1").update(`${userId}:${category}:${url}:${title}`).digest("hex").slice(0, 12);
   return `agent_${hash}`;
 }
 
@@ -111,7 +111,7 @@ async function fetchSource(source: SourcePlan): Promise<string> {
   }
 }
 
-function extractCandidates(source: SourcePlan, html: string, query: string): TargetRow[] {
+function extractCandidates(source: SourcePlan, html: string, query: string, userId: string): TargetRow[] {
   const now = new Date().toISOString();
   const text = stripTags(html);
   const terms = query.toLowerCase().split(/[^a-z0-9+.#]+/).filter((term) => term.length > 2);
@@ -135,7 +135,8 @@ function extractCandidates(source: SourcePlan, html: string, query: string): Tar
     if (!looksRelevant && !queryHit) continue;
 
     rows.push({
-      id: stableId(source.category, url, title),
+      id: stableId(userId, source.category, url, title),
+      user_id: userId,
       priority: rows.length + 1,
       path: source.category === "industry" ? "B" : "A",
       name: title,
@@ -158,7 +159,8 @@ function extractCandidates(source: SourcePlan, html: string, query: string): Tar
 
   if (!rows.length) {
     rows.push({
-      id: stableId(source.category, source.url, source.name),
+      id: stableId(userId, source.category, source.url, source.name),
+      user_id: userId,
       priority: 1,
       path: source.category === "industry" ? "B" : "A",
       name: source.name,
@@ -196,7 +198,7 @@ export async function discoverOpportunities(input: OpportunitySearchInput, ctx: 
   for (const source of planned) {
     try {
       const html = await fetchSource(source);
-      const candidates = extractCandidates(source, html, query);
+      const candidates = extractCandidates(source, html, query, input.userId);
       fetched.push(...candidates);
       record("opportunity-finder", true, `${source.name}: extracted ${candidates.length} candidate(s).`);
     } catch (e) {

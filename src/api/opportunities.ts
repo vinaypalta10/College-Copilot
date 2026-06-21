@@ -37,7 +37,7 @@ export function opportunitiesRouter(db: DB): Router {
     const limit = Math.min(Number(req.query.limit ?? 40), 100);
     const prefs = prefsFromProfile(repo.getProfile(req.user!.id));
 
-    const scored = repo.listOpportunities(category)
+    const scored = repo.listOpportunities(category, req.user!.id)
       .map(t => ({ t, fit: scoreOpportunity(t, prefs) }))
       .sort((a, b) => b.fit.score - a.fit.score)
       .slice(0, limit)
@@ -66,7 +66,7 @@ export function opportunitiesRouter(db: DB): Router {
 
   router.post("/draft", (req: AuthedRequest, res) => {
     const targetId = String(req.body?.targetId ?? "");
-    const target = targetId ? repo.getTarget(targetId) : undefined;
+    const target = targetId ? repo.getTargetForUser(targetId, req.user!.id) : undefined;
     if (!target) { res.status(404).json({ error: "opportunity not found; run an agent search first" }); return; }
 
     const user = req.user!;
