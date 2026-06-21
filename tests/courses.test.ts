@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { scoreCourse, estimateWorkload, type CourseCandidate } from "../src/scorer/courseScore.ts";
-import { buildSchedule, slotsConflict, parseDayCodes, findConflicts, type SchedulableSection } from "../src/scorer/scheduleBuilder.ts";
+import { slotsConflict, parseDayCodes, findConflicts, type SchedulableSection } from "../src/scorer/scheduleBuilder.ts";
 
 function course(over: Partial<CourseCandidate["course"]> = {}): CourseCandidate["course"] {
   return {
@@ -85,23 +85,6 @@ test("slotsConflict: overlap on shared day", () => {
 function sec(id: string, courseId: string, days: string[], start: number, end: number, fit = 50, units = 4): SchedulableSection {
   return { id, courseId, label: id, units, fitScore: fit, slot: { days, startMin: start, endMin: end } };
 }
-
-test("buildSchedule: skips conflicts and respects unit cap", () => {
-  const a = sec("A", "ca", ["M", "W"], 600, 660, 90);
-  const b = sec("B", "cb", ["M", "W"], 630, 690, 80);  // conflicts with A
-  const c = sec("C", "cc", ["Tu", "Th"], 600, 660, 70);
-  const r = buildSchedule([a, b, c], 18);
-  assert.deepEqual(r.chosen.map(s => s.id), ["A", "C"]);
-  assert.equal(r.totalUnits, 8);
-  assert.ok(r.skipped.some(s => s.section.id === "B"));
-});
-
-test("buildSchedule: one section per course", () => {
-  const a = sec("A1", "shared", ["M"], 600, 660, 90);
-  const a2 = sec("A2", "shared", ["F"], 600, 660, 80);
-  const r = buildSchedule([a, a2]);
-  assert.equal(r.chosen.length, 1);
-});
 
 test("findConflicts returns overlapping pairs", () => {
   const a = sec("A", "ca", ["M"], 600, 660);

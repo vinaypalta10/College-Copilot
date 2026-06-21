@@ -97,7 +97,6 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 48px; }
 .trace-list li { margin: 3px 0; }
 .trace-list li b { color: var(--accent); }
 .trace-list li.step-fail b { color: var(--bad); }
-#useAdvisorSchedule { margin-top: 8px; }
 .trace-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; }
 .trace-head strong { color: var(--ink); }
 .trace-steps { display: grid; gap: 6px; margin-top: 8px; }
