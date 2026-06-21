@@ -23,6 +23,9 @@ for them and ranks every class against their profile with a plain-language "why 
 - **Scheduling** — shortlist → auto-built conflict-free timetable → weekly calendar → saved plans.
 - **Research tab** — run opportunity agents that fetch live sources, rank results, and draft outreach.
 - **Quality** — deterministic scorer + schedule builder covered by unit tests.
+- **Redis catalog cache** — the whole Berkeley catalog (40 subjects, ~1,400 courses) is cached
+  in Redis as a read-through snapshot so the advisor/Discover hot path doesn't rebuild its
+  candidate set from SQLite on every request. Falls back to SQLite when Redis is absent.
 
 ### 🎯 Next 2 hours → demo-ready v1 (for the sponsor walkthrough)
 Goal: a smooth, bug-free **happy path** to show. See [ROADMAP.md](ROADMAP.md) for task split.
@@ -74,7 +77,7 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
 |---|---|
 | `npm run dev` | Watch-mode server on `$PORT` (default 4174). |
 | `npm start` | Same as dev without watch. |
-| `npm run import:courses` | Import courses + sections + grades from Berkeleytime, then enrich instructors from RateMyProfessors. Flags: `--term fall-2026 --subjects COMPSCI,DATA,STAT,MATH --limit 60 --no-rmp`. Idempotent. |
+| `npm run import:courses` | Import courses + sections + grades from Berkeleytime (40 subjects across every college by default), then enrich instructors from RateMyProfessors, then warm the Redis catalog cache. Flags: `--subjects COMPSCI,DATA --per-subject 35 --limit 60 --no-rmp`. Idempotent. |
 | `npm run clean:legacy-data` | Remove cached opportunity rows while preserving courses, instructors, users, profiles, and plans. |
 | `npm test` | node:test suite (course scoring + schedule builder are pure & fully unit-tested). |
 
@@ -86,6 +89,43 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
   `instructors` table (30-day TTL), rate-limited.
 - **UC Berkeley SIS Class/Course API** (`developers.api.berkeley.edu`) — optional official
   upgrade behind a CalNet-issued key (stub; not required).
+
+## Caching (Redis)
+
+The advisor and Discover re-rank the **entire** catalog against your profile on every request.
+That ranking is per-user, but its inputs — all courses + the term's sections — are identical
+across users and only change on re-import, so they're cached in Redis.
+
+- Set `REDIS_URL` (e.g. `redis://localhost:6379` or a Redis Cloud URL) to enable it.
+- `src/db/courseCache.ts` is a **read-through cache**: a request reads `cc:catalog:<term>` from
+  Redis; on a miss it builds the snapshot from SQLite and writes it back (30-min TTL, configurable
+  via `REDIS_CATALOG_TTL`). `npm run import:courses` warms the cache at the end.
+- **Resilient by design** (`src/db/redis.ts`): no `REDIS_URL`, an unreachable host, or a mid-flight
+  error all fall back to SQLite — Redis is an accelerator, never a single point of failure.
+- Instructor RMP ratings are intentionally read live from SQLite (not cached here) so lazily
+  enriched ratings appear immediately.
+- `GET /api/healthz` reports `redis.connected` plus catalog cache + vector index `hits/misses/builds`
+  so you can watch the cache working in the demo.
+
+### Semantic course search (Redis as a vector store)
+
+Beyond caching, Redis backs a **semantic "find classes like…" search**. Every course is embedded
+into a dense vector; the whole index is cached in Redis (`cc:vecidx:<term>`), and a query is embedded
+the same way and ranked by cosine similarity.
+
+- `GET /api/courses?q=<text>&semantic=true` → courses ranked by embedding similarity (each result
+  carries a `similarity` score), then enriched with the deterministic fit score. Without `semantic=true`
+  the endpoint keeps its substring keyword search.
+- KNN is computed in Node over the cached vectors, so it runs on **any** Redis — no RediSearch / Redis
+  Stack module required. Redis is the durable vector store the hot path reads from.
+- The embedder (`src/lib/embed.ts`) is keyless and offline by default (a hashed TF-IDF embedding —
+  strong lexical retrieval) and **pluggable**: swap in a hosted neural embedder at the same dimension
+  and the Redis store + KNN are unchanged. Falls back to building the index from SQLite with no Redis.
+- `npm run import:courses` warms the vector index alongside the catalog cache.
+
+Example: `…?q=machine%20learning%20and%20neural%20networks&semantic=true` surfaces COMPSCI 189,
+INDENG 142A, and Statistical Learning Theory; `…?q=climate%20change%20and%20sustainability` surfaces
+ENVECON Climate Change Economics, GEOG Global Climate Change, and ANTHRO Climate Change.
 
 ## Layout
 
@@ -101,7 +141,10 @@ src/
   agents/              advising orchestrator + course/schedule/professor specialists
   skills/              professor-rating + registry
   providers/           Claude API (Anthropic) abstraction for advisor
-  db/                  SQLite schema + typed repo (better-sqlite3) + migrations
+  db/                  SQLite schema + typed repo (better-sqlite3) + migrations;
+                       redis.ts (resilient client) + courseCache.ts (read-through catalog cache)
+                       + vectorStore.ts (Redis-backed embeddings for semantic search)
+  lib/                 embed.ts (keyless hashed TF-IDF embedder) + log, rateLimit, validate, …
   scripts/             import-courses, import-opportunities, clean-legacy-data
 public/
   index.html  styles.css  js/app.js   (vanilla ES-module SPA: login, profile, discover,
@@ -118,6 +161,8 @@ Full list with comments in `.env.example`. Highlights:
 - `OAUTH_HOSTED_DOMAIN` — optional, restrict sign-in to one email domain.
 - `COURSE_TERM` — default term (e.g. `fall-2026`). *Named `COURSE_TERM`, not `TERM`, to avoid the shell's `$TERM`.*
 - `ANTHROPIC_API_KEY` — Claude API; powers the advisor's NL parsing (heuristic fallback when absent).
+- `REDIS_URL` — enables the Redis course-catalog cache (SQLite fallback when absent/unreachable).
+  Optional `REDIS_CATALOG_TTL` (seconds, default 1800).
 
 ## Notable behaviors
 

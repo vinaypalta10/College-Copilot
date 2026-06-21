@@ -15,6 +15,9 @@ import "./skills/index.ts";
 import "./agents/index.ts";
 import { rateLimit } from "./lib/rateLimit.ts";
 import { log } from "./lib/log.ts";
+import { getRedis, redisConfigured, redisHealthy, closeRedis } from "./db/redis.ts";
+import { cacheStats } from "./db/courseCache.ts";
+import { vectorStats } from "./db/vectorStore.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(here, "..", "public");
@@ -47,7 +50,16 @@ app.use("/api/schedule", scheduleRouter(db));
 app.use("/api/opportunities", opportunitiesRouter(db));
 
 app.get("/api/healthz", (_req, res) => {
-  res.json({ ok: true, courses: repo.countCourses() });
+  res.json({
+    ok: true,
+    courses: repo.countCourses(),
+    redis: {
+      configured: redisConfigured(),
+      connected: redisHealthy(),
+      catalogCache: { ...cacheStats },
+      vectorIndex: { ...vectorStats },
+    },
+  });
 });
 
 app.use(express.static(publicDir, { extensions: ["html"], index: "index.html" }));
@@ -60,9 +72,19 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 app.listen(port, () => {
   log.info("server listening", { port, courses: repo.countCourses() });
   console.log(`College Copilot: http://localhost:${port}`);
+  // Warm the Redis connection (and surface its status) without blocking startup.
+  if (redisConfigured()) {
+    getRedis().then(r => {
+      if (r) console.log("Redis: connected (course catalog cache active)");
+      else console.log("Redis: configured but unreachable — using SQLite fallback");
+    });
+  } else {
+    console.log("Redis: not configured (set REDIS_URL to enable the catalog cache)");
+  }
 });
 
-process.on("SIGINT", () => {
+process.on("SIGINT", async () => {
   log.info("shutdown");
+  await closeRedis();
   process.exit(0);
 });

@@ -15,8 +15,29 @@ import { Repo } from "../db/repo.ts";
 import { parseTerm, listCourseKeys, fetchCourseDetail } from "../ingest/berkeleytime.ts";
 import { instructorKey } from "../lib/instructors.ts";
 import { enrichInstructor } from "../skills/professor-rating.ts";
+import { refreshCatalog } from "../db/courseCache.ts";
+import { refreshIndex } from "../db/vectorStore.ts";
+import { closeRedis } from "../db/redis.ts";
 
-const DEFAULT_SUBJECTS = ["COMPSCI", "DATA", "STAT", "MATH"];
+// A broad, demo-rich slice of Berkeley spanning every college: CS/EECS/data,
+// engineering, the physical & life sciences, social sciences, humanities, and
+// business. `npm run import:courses` pulls all of these by default.
+const DEFAULT_SUBJECTS = [
+  // Computing, data & math
+  "COMPSCI", "EECS", "ELENG", "DATA", "DATASCI", "INFO", "STAT", "MATH",
+  // Physical sciences & engineering
+  "PHYSICS", "ASTRON", "CHEM", "MECENG", "CIVENG", "INDENG", "BIOENG", "MATSCI", "NUCENG",
+  // Life & health sciences
+  "MCELLBI", "INTEGBI", "NEU", "PBHLTH", "NUSCTX",
+  // Mind & behavior
+  "COGSCI", "PSYCH", "LINGUIS",
+  // Social sciences
+  "ECON", "POLSCI", "SOCIOL", "ANTHRO", "LEGALST", "GEOG", "ENVECON",
+  // Humanities & arts
+  "ENGLISH", "HISTORY", "PHILOS", "MUSIC", "FILM", "ART", "COMLIT",
+  // Business
+  "UGBA",
+];
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -40,15 +61,29 @@ async function main(): Promise<void> {
   const term = parseTerm(arg("term") || process.env.COURSE_TERM || "fall-2026");
   const subjects = (arg("subjects") || DEFAULT_SUBJECTS.join(",")).split(",").map(s => s.trim()).filter(Boolean);
   const limit = arg("limit") ? Number(arg("limit")) : Infinity;
+  // Per-subject cap keeps coverage even across many departments (so one huge
+  // department doesn't crowd out the rest). Defaults to 40.
+  const perSubject = arg("per-subject") ? Number(arg("per-subject")) : 40;
   const concurrency = Number(arg("concurrency") || 6);
 
-  console.log(`Importing ${term.term} for subjects: ${subjects.join(", ")}`);
+  console.log(`Importing ${term.term} for ${subjects.length} subjects: ${subjects.join(", ")}`);
 
   const db = getDb();
   const repo = new Repo(db);
 
   let keys = await listCourseKeys(term, subjects);
   console.log(`Found ${keys.length} distinct courses in catalog.`);
+
+  // Cap per subject for even breadth, then optionally cap the grand total.
+  if (Number.isFinite(perSubject)) {
+    const perSubjectCount = new Map<string, number>();
+    keys = keys.filter(k => {
+      const n = (perSubjectCount.get(k.subject) ?? 0) + 1;
+      perSubjectCount.set(k.subject, n);
+      return n <= perSubject;
+    });
+    console.log(`Capped to ${keys.length} courses (≤${perSubject} per subject).`);
+  }
   if (Number.isFinite(limit)) keys = keys.slice(0, limit);
 
   let courses = 0, sections = 0, instructors = 0, errors = 0;
@@ -95,9 +130,21 @@ async function main(): Promise<void> {
     });
     console.log(`RMP: ${rated}/${names.length} instructors rated.`);
   }
+
+  // Warm the Redis course-catalog cache + semantic vector index so the app
+  // serves both from Redis immediately.
+  const refreshed = await refreshCatalog(repo, term.term);
+  if (refreshed.cached) {
+    const vec = await refreshIndex(repo, term.term);
+    console.log(`Redis: warmed catalog cache (${refreshed.courses} courses) + vector index (${vec.vectors} embeddings) for ${term.term}.`);
+  } else {
+    console.log(`Redis: not configured — set REDIS_URL to cache the catalog + vector index.`);
+  }
+  await closeRedis();
 }
 
-main().catch(error => {
+main().catch(async error => {
   console.error("Import failed:", error);
+  await closeRedis();
   process.exit(1);
 });

@@ -32,9 +32,47 @@ Examples: "mornings" -> latest "12:00". "no friday" -> daysOff ["F"].
 "manageable/easy" -> workloadTolerance "light". "nothing below 3.5" -> minProfRating 3.5.`;
 
 export const SUBJECT_ALIASES: Record<string, string> = {
+  // Computing, data & math
   cs: "COMPSCI", "computer science": "COMPSCI", eecs: "EECS",
-  data: "DATA", "data science": "DATA", ds: "DATA",
-  stat: "STAT", statistics: "STAT", math: "MATH", physics: "PHYSICS",
+  ee: "ELENG", "electrical engineering": "ELENG",
+  data: "DATA", "data science": "DATA", ds: "DATA", datasci: "DATASCI",
+  info: "INFO", ischool: "INFO",
+  stat: "STAT", statistics: "STAT", stats: "STAT",
+  math: "MATH", mathematics: "MATH",
+  // Physical sciences & engineering
+  physics: "PHYSICS", astronomy: "ASTRON", astro: "ASTRON",
+  chem: "CHEM", chemistry: "CHEM",
+  "mechanical engineering": "MECENG", meche: "MECENG",
+  "civil engineering": "CIVENG",
+  "industrial engineering": "INDENG", ieor: "INDENG",
+  bioe: "BIOENG", bioengineering: "BIOENG",
+  "materials science": "MATSCI",
+  "nuclear engineering": "NUCENG",
+  // Life & health sciences
+  mcb: "MCELLBI", "molecular and cell biology": "MCELLBI",
+  ib: "INTEGBI", "integrative biology": "INTEGBI",
+  neuro: "NEU", neuroscience: "NEU",
+  "public health": "PBHLTH", pbhlth: "PBHLTH",
+  nutrition: "NUSCTX",
+  // Mind & behavior
+  "cognitive science": "COGSCI", cogsci: "COGSCI",
+  psych: "PSYCH", psychology: "PSYCH",
+  linguistics: "LINGUIS", ling: "LINGUIS",
+  // Social sciences
+  econ: "ECON", economics: "ECON",
+  polisci: "POLSCI", "political science": "POLSCI", "poli sci": "POLSCI",
+  sociology: "SOCIOL", socio: "SOCIOL",
+  anthro: "ANTHRO", anthropology: "ANTHRO",
+  "legal studies": "LEGALST", law: "LEGALST",
+  geography: "GEOG", geo: "GEOG",
+  "environmental economics": "ENVECON",
+  // Humanities & arts
+  english: "ENGLISH", history: "HISTORY",
+  philosophy: "PHILOS", phil: "PHILOS",
+  music: "MUSIC", film: "FILM", art: "ART",
+  "comparative literature": "COMLIT", complit: "COMLIT",
+  // Business
+  haas: "UGBA", business: "UGBA", ugba: "UGBA",
 };
 
 export function heuristicParse(q: string): QueryConstraints {

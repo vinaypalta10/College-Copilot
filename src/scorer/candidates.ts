@@ -6,9 +6,10 @@
  * a student's preferences. This module is the single source of truth for that.
  */
 
-import type { Repo, StudentProfileRow, SectionRow, CourseRow } from "../db/repo.ts";
+import type { Repo, StudentProfileRow, SectionRow } from "../db/repo.ts";
 import { instructorKey } from "../lib/instructors.ts";
 import { scoreCourse, type StudentPrefs, type CourseCandidate, type FitResult } from "./courseScore.ts";
+import { buildCatalog, loadCatalog, type Catalog } from "../db/courseCache.ts";
 
 export function prefsFromProfile(p: StudentProfileRow | undefined): StudentPrefs {
   const parse = <T>(s: string | null | undefined, fb: T): T => {
@@ -40,16 +41,21 @@ export interface RankFilters {
 
 export interface RankedCourse { cand: CourseCandidate; fit: FitResult }
 
-/** Build + rank all courses for a term against prefs, applying basic filters. */
-export function rankCourses(repo: Repo, term: string, prefs: StudentPrefs, filters: RankFilters = {}): RankedCourse[] {
-  const sectionsByCourse = new Map<string, SectionRow[]>();
-  for (const s of repo.sectionsForTerm(term)) {
-    const arr = sectionsByCourse.get(s.course_id) ?? [];
-    arr.push(s);
-    sectionsByCourse.set(s.course_id, arr);
-  }
+/** How to resolve an instructor row by name — SQLite point lookup (RMP cache). */
+type InstructorLookup = (name: string) => CourseCandidate["instructor"];
 
-  let courses: CourseRow[] = repo.listCourses();
+/**
+ * Pure ranking over a prebuilt catalog snapshot. Instructor RMP data is resolved
+ * live (so freshly enriched ratings show immediately) while the bulk catalog can
+ * come from the Redis cache.
+ */
+export function rankCatalog(
+  catalog: Catalog,
+  prefs: StudentPrefs,
+  filters: RankFilters,
+  getInstructor: InstructorLookup,
+): RankedCourse[] {
+  let courses = catalog.courses;
   if (filters.subject) courses = courses.filter(c => c.subject.toUpperCase() === filters.subject!.toUpperCase());
   if (filters.q) {
     const q = filters.q.toLowerCase();
@@ -57,8 +63,8 @@ export function rankCourses(repo: Repo, term: string, prefs: StudentPrefs, filte
   }
 
   const ranked = courses.map(course => {
-    const section = primarySection(sectionsByCourse.get(course.id) ?? []);
-    const instructor = section?.instructor ? repo.getInstructor(instructorKey(section.instructor)) : undefined;
+    const section = primarySection(catalog.sectionsByCourse[course.id] ?? []);
+    const instructor = section?.instructor ? getInstructor(section.instructor) : undefined;
     const cand: CourseCandidate = { course, section, instructor };
     return { cand, fit: scoreCourse(cand, prefs) };
   }).filter(({ cand, fit }) => {
@@ -69,4 +75,18 @@ export function rankCourses(repo: Repo, term: string, prefs: StudentPrefs, filte
 
   ranked.sort((a, b) => b.fit.score - a.fit.score);
   return ranked;
+}
+
+/** Build + rank all courses for a term against prefs (synchronous, SQLite-direct). */
+export function rankCourses(repo: Repo, term: string, prefs: StudentPrefs, filters: RankFilters = {}): RankedCourse[] {
+  return rankCatalog(buildCatalog(repo, term), prefs, filters, name => repo.getInstructor(instructorKey(name)));
+}
+
+/**
+ * Same as `rankCourses`, but the catalog comes from the Redis read-through cache
+ * when available (falling back to SQLite). Use this on request hot paths.
+ */
+export async function rankCoursesCached(repo: Repo, term: string, prefs: StudentPrefs, filters: RankFilters = {}): Promise<RankedCourse[]> {
+  const catalog = await loadCatalog(repo, term);
+  return rankCatalog(catalog, prefs, filters, name => repo.getInstructor(instructorKey(name)));
 }

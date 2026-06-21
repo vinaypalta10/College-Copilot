@@ -7,7 +7,7 @@
 
 import { registerAgent } from "../registry.ts";
 import type { Agent, AgentContext } from "../types.ts";
-import { rankCourses, type RankedCourse } from "../../scorer/candidates.ts";
+import { rankCoursesCached, type RankedCourse } from "../../scorer/candidates.ts";
 import type { StudentPrefs } from "../../scorer/courseScore.ts";
 
 export interface CourseFinderInput {
@@ -19,8 +19,8 @@ export interface CourseFinderInput {
 }
 export interface CourseFinderOutput { candidates: RankedCourse[]; total: number; summary: string }
 
-export function findCourses(ctx: AgentContext, input: CourseFinderInput): CourseFinderOutput {
-  const ranked = rankCourses(ctx.repo, input.term, input.prefs, {
+export async function findCourses(ctx: AgentContext, input: CourseFinderInput): Promise<CourseFinderOutput> {
+  const ranked = await rankCoursesCached(ctx.repo, input.term, input.prefs, {
     subject: input.subject ?? null,
     openOnly: input.openOnly ?? false,
   });
@@ -37,7 +37,7 @@ export const courseFinder: Agent<CourseFinderInput, CourseFinderOutput> = {
   description: "Searches and ranks the live Berkeley catalog against the student's merged preferences (deterministic scorer).",
   status: "active",
   skills: ["course-search"],
-  run: (input, ctx) => Promise.resolve(findCourses(ctx, input)),
+  run: (input, ctx) => findCourses(ctx, input),
 };
 
 registerAgent(courseFinder);

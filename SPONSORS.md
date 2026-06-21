@@ -9,7 +9,7 @@ How College Copilot qualifies for each sponsor track. Raw challenge text is in t
 |---|---|---|---|---|---|---|---|
 | **Anthropic** | Built with Claude Code, big-swing in health/edu/economic opportunity | Use Claude Code; tackle a meaningful problem | Already true — built with Claude Code; Claude API powers the advisor + outreach. Education + economic-opportunity story. | XS | | ☐ | Claude Code transcript, `ANTHROPIC_API_KEY` wired in `src/providers/anthropic.ts` |
 | **Fetch.ai** | ASI:One Agent Challenge | Agent on Agentverse, Agent Chat Protocol, discoverable via ASI:One, multi-step tool use, no custom frontend | Wrap our **course-advisor** as a uAgent on Agentverse that calls our REST API as tools; runs entirely in ASI:One chat | L | | ☐ | Agentverse profile URL + ASI:One shared chat URL |
-| **Redis** | Best Use of Redis | Meaningful use of Redis | Move sessions + RMP/course caches to Redis; add **RediSearch vector** semantic course search | M | | ☐ | Redis connection + code path |
+| **Redis** | Best Use of Redis | Meaningful use of Redis | Two visible uses: (1) **read-through Redis cache** of the Berkeley catalog (advisor/Discover re-rank the whole catalog per request); (2) **Redis as a vector store** for semantic "find classes like…" search (embeddings cached in Redis, cosine KNN). Both resilient — fall back to SQLite when Redis is down. | M | | ◐ | `src/db/redis.ts`, `courseCache.ts`, `vectorStore.ts`, `lib/embed.ts`; `GET /api/courses?q=…&semantic=true`; `/api/healthz` shows `redis.connected` + cache/vector hit-miss counters |
 | **The Token Company** | Context compression | Reduce tokens sent to an LLM while preserving quality | Compression layer that shrinks the course-catalog context before the advisor's Claude calls | M | | ☐ | Before/after token counts |
 
 Status: ☐ todo · ◐ in progress · ✅ done & proof captured
@@ -37,12 +37,20 @@ Fetch agent.
 - **Deliverables to capture:** Agentverse agent profile URL, a public ASI:One shared chat URL
   showing the full flow, demo video.
 
-### 3. Redis — **solid medium win**
-Natural fits (pick one or two and make them visible):
-- **Cache** RMP lookups + ranked course-search results (we re-rank the whole catalog per request).
+### 3. Redis — **solid medium win** ◐ (two uses built)
+Built so far:
+- ✅ **Read-through catalog cache** (`src/db/courseCache.ts`) — the whole catalog is cached as one
+  snapshot per term; the advisor/Discover hot path reads it instead of rebuilding from SQLite.
+- ✅ **Redis as a vector store** (`src/db/vectorStore.ts` + `src/lib/embed.ts`) — course embeddings
+  cached in Redis; semantic search ranks by cosine similarity. KNN runs in Node so it works on **any**
+  Redis (no RediSearch module needed). Strongest "best use" angle and demos well via
+  `GET /api/courses?q=…&semantic=true`.
+
+To demo live, point `REDIS_URL` at a Redis Cloud instance and re-run `npm run import:courses`
+(it warms both caches); `/api/healthz` then shows the hit counters climbing.
+
+Still on the table (pick one if time):
 - **Session store** — swap our SQLite sessions (`src/auth/session.ts`) for Redis.
-- **RediSearch vector search** — embed course titles/descriptions, store vectors in Redis, do
-  semantic "find classes like…" search. This is the strongest "best use" angle and demos well.
 - Stretch: pub/sub for live seat-availability updates.
 
 where can we use redis, is for the profile page. I am thinking about courses completed, instead of searching for the website everytime, I think we can develop an algorithm that will make this step easier
