@@ -2,7 +2,10 @@ import { Router } from "express";
 import { Repo } from "../db/repo.ts";
 import type { DB } from "../db/client.ts";
 import { requireAuth, type AuthedRequest } from "../auth/session.ts";
-import { searchBerkeleyProfessors } from "../providers/berkeleyProfessors.ts";
+import {
+  searchBerkeleyProfessors,
+  searchImportedBerkeleyProfessors,
+} from "../providers/berkeleyProfessors.ts";
 
 function parseJsonList(value: string | null | undefined): string[] {
   if (!value) return [];
@@ -29,10 +32,17 @@ export function professorsRouter(db: DB): Router {
         ...parseJsonList(profile?.interests),
         ...parseJsonList(profile?.requirements_remaining),
       ].filter((item): item is string => Boolean(item));
-      const professors = await searchBerkeleyProfessors({ query, profileTerms, limit });
+      let professors = searchImportedBerkeleyProfessors(db, { query, profileTerms, limit });
+      let mode = "imported-berkeley-directory";
+      // Preserve the old behavior for a fresh clone until `npm run import:professors`
+      // has populated the local directory.
+      if (!professors.length && repo.countProfessors() === 0) {
+        professors = await searchBerkeleyProfessors({ query, profileTerms, limit });
+        mode = "live-eecs-fallback";
+      }
       res.json({
-        mode: "official-berkeley-pages",
-        sources: ["Berkeley EECS CS faculty", "Berkeley EECS EE faculty"],
+        mode,
+        directorySize: repo.countProfessors(),
         count: professors.length,
         professors,
       });

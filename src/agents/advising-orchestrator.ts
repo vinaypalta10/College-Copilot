@@ -51,7 +51,18 @@ export async function advise(input: AdviseInput, ctx: AgentContext): Promise<Adv
   // 2. course-finder
   let candidates: RankedCourse[] = [];
   try {
-    const found = await findCourses(ctx, { prefs, term, subject: constraints.subject ?? null, openOnly: constraints.openOnly, limit: input.limit ?? 40 });
+    const found = await findCourses(ctx, {
+      prefs,
+      term,
+      subject: constraints.subject ?? null,
+      openOnly: constraints.openOnly,
+      limit: input.limit ?? 40,
+      minCourseNumber: constraints.minCourseNumber,
+      maxCourseNumber: constraints.maxCourseNumber,
+      allowedDays: constraints.allowedDays,
+      excludedDays: constraints.daysOff,
+      topicQuery: constraints.topicQuery,
+    });
     candidates = found.candidates;
     record("course-finder", true, found.summary);
   } catch (e) {

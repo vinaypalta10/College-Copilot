@@ -163,6 +163,24 @@ export interface SavedPlanRow {
   created_at: string;
 }
 
+export interface ProfessorRow {
+  id: string;
+  name: string;
+  normalized_name: string;
+  email: string | null;
+  title: string | null;
+  departments: string;
+  research_interests: string;
+  bio: string | null;
+  profile_url: string | null;
+  image_url: string | null;
+  source_names: string;
+  source_urls: string;
+  imported_at: string;
+  last_seen_at: string;
+  active: number;
+}
+
 export class Repo {
   constructor(private readonly db: DB) {}
 
@@ -337,6 +355,68 @@ export class Repo {
 
   deleteSavedPlan(id: string, userId: string): void {
     this.db.prepare(`DELETE FROM saved_plans WHERE id = ? AND user_id = ?`).run(id, userId);
+  }
+
+  // ─── Berkeley faculty directory ───
+  upsertProfessor(p: ProfessorRow): void {
+    this.db.prepare(`
+      INSERT INTO professors (
+        id, name, normalized_name, email, title, departments, research_interests,
+        bio, profile_url, image_url, source_names, source_urls,
+        imported_at, last_seen_at, active
+      ) VALUES (
+        @id, @name, @normalized_name, @email, @title, @departments, @research_interests,
+        @bio, @profile_url, @image_url, @source_names, @source_urls,
+        @imported_at, @last_seen_at, @active
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        normalized_name = excluded.normalized_name,
+        email = COALESCE(excluded.email, professors.email),
+        title = COALESCE(excluded.title, professors.title),
+        departments = excluded.departments,
+        research_interests = excluded.research_interests,
+        bio = COALESCE(excluded.bio, professors.bio),
+        profile_url = COALESCE(excluded.profile_url, professors.profile_url),
+        image_url = COALESCE(excluded.image_url, professors.image_url),
+        source_names = excluded.source_names,
+        source_urls = excluded.source_urls,
+        imported_at = excluded.imported_at,
+        last_seen_at = excluded.last_seen_at,
+        active = excluded.active
+    `).run(p);
+  }
+
+  listProfessors(): ProfessorRow[] {
+    return this.db.prepare(`
+      SELECT * FROM professors WHERE active = 1 ORDER BY name COLLATE NOCASE
+    `).all() as ProfessorRow[];
+  }
+
+  countProfessors(): number {
+    return (this.db.prepare(`SELECT COUNT(*) AS n FROM professors WHERE active = 1`).get() as { n: number }).n;
+  }
+
+  markProfessorsInactiveExcept(ids: string[]): void {
+    if (!ids.length) return;
+    const placeholders = ids.map(() => "?").join(",");
+    this.db.prepare(`UPDATE professors SET active = 0 WHERE id NOT IN (${placeholders})`).run(...ids);
+  }
+
+  startProfessorImport(sourceCount: number): number {
+    const result = this.db.prepare(`
+      INSERT INTO professor_import_runs (started_at, source_count)
+      VALUES (?, ?)
+    `).run(new Date().toISOString(), sourceCount);
+    return Number(result.lastInsertRowid);
+  }
+
+  finishProfessorImport(id: number, seenCount: number, savedCount: number, errors: string[]): void {
+    this.db.prepare(`
+      UPDATE professor_import_runs
+      SET finished_at = ?, seen_count = ?, saved_count = ?, errors = ?
+      WHERE id = ?
+    `).run(new Date().toISOString(), seenCount, savedCount, JSON.stringify(errors), id);
   }
 
   upsertTarget(row: TargetRow): void {

@@ -58,6 +58,7 @@ app.get("/api/healthz", (_req, res) => {
   res.json({
     ok: true,
     courses: repo.countCourses(),
+    professors: repo.countProfessors(),
     redis: {
       configured: redisConfigured(),
       connected: redisHealthy(),

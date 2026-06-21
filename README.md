@@ -47,6 +47,7 @@ Goal: a smooth, bug-free **happy path** to show. See [ROADMAP.md](ROADMAP.md) fo
 cp .env.example .env       # optional: add a provider key + Google OAuth (both have fallbacks)
 npm install
 npm run import:courses      # pull the full Fall 2026 catalog from Berkeleytime (+ RateMyProfessors)
+npm run import:professors   # cache official Berkeley faculty/contact/research profiles
 npm run dev                # http://localhost:4174
 ```
 
@@ -78,6 +79,7 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
 | `npm run dev` | Watch-mode server on `$PORT` (default 4174). |
 | `npm start` | Same as dev without watch. |
 | `npm run import:courses` | Import all courses + sections + grades from Berkeleytime (the full catalog by default), enrich instructors from RateMyProfessors, then warm the Redis catalog cache + vector index. Optional flags: `--subjects COMPSCI,DATA --per-subject 35 --limit 60 --no-rmp`. Idempotent. |
+| `npm run import:professors` | Import and deduplicate public faculty profiles from Berkeley's campus-wide Faculty Expertise Finder plus department directory overlays. Follows every results page and enriches public contact/research details. Optional flags: `--no-details`, `--max-pages 3`, `--concurrency 4`. Idempotent. |
 | `npm run clean:legacy-data` | Remove cached opportunity rows while preserving courses, instructors, users, profiles, and plans. |
 | `npm test` | node:test suite (course scoring + schedule builder are pure & fully unit-tested). |
 
@@ -89,6 +91,11 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
   `instructors` table (30-day TTL), rate-limited.
 - **UC Berkeley SIS Class/Course API** (`developers.api.berkeley.edu`) — optional official
   upgrade behind a CalNet-issued key (stub; not required).
+- **UC Berkeley Faculty Expertise Finder** (`vcresearch.berkeley.edu/faculty-expertise`) —
+  campus-wide professor, department, research-interest, profile, and public contact data.
+- **Official department faculty directories** — merged as coverage overlays for faculty omitted
+  from the central finder. EECS CS/EE are currently included; new department adapters can be
+  added without changing the professor database or search API.
 
 ## Caching (Redis)
 
@@ -136,6 +143,7 @@ src/
   api/                 Route handlers (zod-validated): auth, profile, courses,
                        advisor, plans, schedule, opportunities
   ingest/              berkeleytime.ts (catalog) + ratemyprofessors.ts (ratings)
+                       + berkeleyFaculty.ts (campus + department faculty importer)
   scorer/              courseScore.ts (fit, explainable) + candidates.ts (ranking)
                        + scheduleBuilder.ts (conflict-free assembly) + opportunityScore.ts
   agents/              advising orchestrator + course/schedule/professor specialists
@@ -182,3 +190,6 @@ Full list with comments in `.env.example`. Highlights:
   per-user; full per-user isolation of the outreach pipeline is a follow-up.
 - Requirement matching is text-based against the student's stated remaining requirements; it does
   not yet parse official degree audits.
+- Berkeley does not publish one complete public faculty API. The importer combines the broad
+  campus expertise finder with official department overlays; its source list should be expanded
+  when a department is found to omit faculty from the campus index.

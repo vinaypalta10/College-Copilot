@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import type { DB } from "../db/client.ts";
+import { Repo, type ProfessorRow } from "../db/repo.ts";
+import { normalizeProfessorName } from "../lib/professors.ts";
 
 const USER_AGENT = "CollegeCopilot/0.3 professor-search";
 const TIMEOUT_MS = Number(process.env.BERKELEY_PROFESSOR_TIMEOUT_MS || 7000);
@@ -30,6 +33,7 @@ export interface ProfessorResult {
   sourceName: string;
   score: number;
   imageUrl?: string | null;
+  departments?: string[];
 }
 
 function stripTags(html: string): string {
@@ -101,7 +105,9 @@ export function parseEecsFacultyList(html: string, source: FacultySource): Profe
     const text = stripTags(item);
     const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
     const research = text.match(/Research Interests:\s*(.*?)(?:Education:|Office Hours:|Teaching Schedule|Assistants:|$)/i)?.[1]?.trim();
-    const title = text.match(/^(.*?)(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|Research Interests:|Education:|Office Hours:|$)/i)?.[1]?.trim() || null;
+    const title = stripTags(item.match(/<strong[^>]*>([\s\S]*?)<\/strong>/i)?.[1] || "")
+      || text.match(/^(.*?)(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|Research Interests:|Education:|Office Hours:|$)/i)?.[1]?.trim()
+      || null;
 
     rows.push({
       id: stableId(url || source.url, name),
@@ -129,7 +135,7 @@ function findProfessorImageUrl(html: string, baseUrl?: string, professorName?: s
   const candidates = [...html.matchAll(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi)]
     .map(match => {
       const raw = match[0];
-      const src = match[1].trim();
+      const src = (match[1] || "").trim();
       const absolute = absolutize(src, baseUrl || "");
       if (!absolute || !/\/Faculty\/Photos\/Homepages\//i.test(absolute)) return null;
       const alt = /alt=["']([^"']*)["']/i.exec(raw)?.[1]?.trim() || "";
@@ -143,7 +149,7 @@ function findProfessorImageUrl(html: string, baseUrl?: string, professorName?: s
   const nameInSrc = candidates.find(candidate => normalizedName && candidate.src.toLowerCase().includes(normalizedName));
   if (nameInSrc) return nameInSrc.src;
 
-  return candidates.length === 1 ? candidates[0].src : candidates[0]?.src ?? null;
+  return candidates[0]?.src ?? null;
 }
 
 export function parseEecsFacultyBio(html: string, baseUrl?: string, professorName?: string): { bio: string; field: string | null; email: string | null; title: string | null; imageUrl: string | null } {
@@ -175,6 +181,95 @@ function rankProfessor(professor: ProfessorResult, terms: string[]): number {
   const hits = terms.filter(term => hay.includes(term)).length;
   const nameHit = terms.some(term => professor.name.toLowerCase().includes(term)) ? 20 : 0;
   return hits * 18 + nameHit + Math.min(professor.field.length / 18, 12);
+}
+
+function jsonStrings(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function rowToResult(row: ProfessorRow): ProfessorResult {
+  const interests = jsonStrings(row.research_interests);
+  const departments = jsonStrings(row.departments);
+  const sourceNames = jsonStrings(row.source_names);
+  const sourceUrls = jsonStrings(row.source_urls);
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    title: row.title,
+    field: interests.length ? interests.join(", ") : "Research interests not listed.",
+    bio: row.bio || "",
+    source: row.profile_url || sourceUrls[0] || "",
+    sourceName: sourceNames.join(", ") || "Official UC Berkeley faculty directory",
+    score: 0,
+    imageUrl: row.image_url,
+    departments,
+  };
+}
+
+function directoryScore(row: ProfessorRow, query: string, profileTerms: string[]): number {
+  const normalizedQuery = normalizeProfessorName(query);
+  const normalizedName = row.normalized_name;
+  const queryTerms = query.toLowerCase().split(/[^a-z0-9+.#]+/).filter(term => term.length > 1);
+  const profileTokens = profileTerms.join(" ").toLowerCase().split(/[^a-z0-9+.#]+/).filter(term => term.length > 2);
+  const identityText = [row.name, row.title, row.departments].filter(Boolean).join(" ").toLowerCase();
+  const researchText = row.research_interests.toLowerCase();
+  const bioText = (row.bio || "").toLowerCase();
+  const haystack = `${identityText} ${researchText} ${bioText}`;
+
+  let score = 0;
+  if (normalizedQuery) {
+    if (normalizedName === normalizedQuery) score += 1_000;
+    else if (normalizedName.startsWith(normalizedQuery) || normalizedQuery.startsWith(normalizedName)) score += 700;
+    else if (normalizedName.includes(normalizedQuery)) score += 550;
+
+    if (researchText.includes(query.toLowerCase())) score += 140;
+    else if (bioText.includes(query.toLowerCase())) score += 90;
+    for (const term of queryTerms) {
+      if (researchText.includes(term)) score += 50;
+      else if (bioText.includes(term)) score += 24;
+      else if (identityText.includes(term)) score += 15;
+    }
+    if (queryTerms.length > 1 && queryTerms.every(term => normalizedName.includes(term))) score += 350;
+  }
+
+  const profileHits = profileTokens.filter(term => haystack.includes(term)).length;
+  score += Math.min(profileHits * 4, 20);
+  if (jsonStrings(row.research_interests).length) score += 10;
+  if (row.email) score += 3;
+  return score;
+}
+
+/** Search the persistent imported directory. Returns [] before the first import. */
+export function searchImportedBerkeleyProfessors(
+  db: DB,
+  input: ProfessorSearchInput,
+): ProfessorResult[] {
+  const repo = new Repo(db);
+  const rows = repo.listProfessors();
+  if (!rows.length) return [];
+  const query = input.query?.trim() || "";
+  const limit = Math.min(input.limit ?? 12, 30);
+  return rows
+    .map(row => ({ row, score: directoryScore(row, query, input.profileTerms || []) }))
+    .filter(({ score }) => !query || score > 13)
+    .sort((a, b) => b.score - a.score || a.row.name.localeCompare(b.row.name))
+    .slice(0, limit)
+    .map(({ row, score }) => ({
+      ...rowToResult(row),
+      score: score >= 1_000
+        ? 100
+        : score >= 700
+          ? 98
+          : score >= 500
+            ? 95
+            : Math.min(94, Math.round(35 + 60 * (1 - Math.exp(-score / 150)))),
+    }));
 }
 
 export async function searchBerkeleyProfessors(input: ProfessorSearchInput): Promise<ProfessorResult[]> {

@@ -6,6 +6,8 @@ import { estimateScheduleWorkload } from "../src/agents/specialists/workload-est
 import { buildFromCandidates } from "../src/agents/specialists/schedule-builder.ts";
 import { heuristicParse, mergePrefs } from "../src/agents/parseQuery.ts";
 import { scoreCourse } from "../src/scorer/courseScore.ts";
+import { rankCatalog } from "../src/scorer/candidates.ts";
+import type { Catalog } from "../src/db/courseCache.ts";
 
 function rc(subject: string, number: string, opts: { units?: number; avgGpa?: number; days?: string; start?: number; end?: number; title?: string } = {}): RankedCourse {
   const course = {
@@ -54,13 +56,83 @@ test("heuristicParse extracts subject, time, workload, rating, daysOff", () => {
   assert.equal(c.workloadTolerance, "light");
   assert.equal(c.minProfRating, 3.5);
   assert.deepEqual(c.daysOff, ["F"]);
+  assert.equal(c.topicQuery, null);
+});
+
+test("heuristicParse extracts lower division History and excludes Friday", () => {
+  const c = heuristicParse("give me lower division history courses not on Fridays");
+  assert.equal(c.subject, "HISTORY");
+  assert.equal(c.minCourseNumber, 1);
+  assert.equal(c.maxCourseNumber, 99);
+  assert.deepEqual(c.daysOff, ["F"]);
+  assert.equal(c.topicQuery, null);
+});
+
+test("heuristicParse treats listed meeting days as allowed days and keeps the academic topic", () => {
+  const c = heuristicParse("upper div math real analysis on Monday Tuesday Wednesday");
+  assert.equal(c.subject, "MATH");
+  assert.equal(c.minCourseNumber, 100);
+  assert.equal(c.maxCourseNumber, 199);
+  assert.deepEqual(c.allowedDays, ["M", "Tu", "W"]);
+  assert.equal(c.topicQuery, "real analysis");
 });
 
 test("mergePrefs overlays constraints onto base profile", () => {
-  const base = { interests: ["theory"], requirementsRemaining: ["upper div"], minProfRating: 3.0, workloadTolerance: "medium" as const, timePrefs: { earliest: "09:00" } };
-  const merged = mergePrefs(base, { interests: ["ml"], minProfRating: 4.0, latest: "15:00" });
+  const base = { interests: ["theory"], requirementsRemaining: ["upper div"], minProfRating: 3.0, workloadTolerance: "medium" as const, timePrefs: { earliest: "09:00", daysOff: ["W"] } };
+  const merged = mergePrefs(base, { interests: ["ml"], minProfRating: 4.0, latest: "15:00", daysOff: ["F"] });
   assert.deepEqual(merged.interests, ["theory", "ml"]);
   assert.equal(merged.minProfRating, 4.0);
   assert.equal(merged.timePrefs?.earliest, "09:00");
   assert.equal(merged.timePrefs?.latest, "15:00");
+  assert.deepEqual(merged.timePrefs?.daysOff, ["W", "F"]);
+});
+
+test("explicitly allowed days override conflicting saved days-off preferences", () => {
+  const merged = mergePrefs({ timePrefs: { daysOff: ["W", "F"] } }, { allowedDays: ["M", "Tu", "W"] });
+  assert.deepEqual(merged.timePrefs?.daysOff, ["F"]);
+});
+
+test("rankCatalog hard-filters lower-division History courses and Friday meetings", () => {
+  const candidates = [
+    rc("HISTORY", "7A", { title: "United States History", days: "TuTh", start: 600, end: 660 }),
+    rc("HISTORY", "30", { title: "Early Global History", days: "MWF", start: 600, end: 660 }),
+    rc("HISTORY", "101", { title: "Upper Division Seminar", days: "TuTh", start: 600, end: 660 }),
+    rc("ENGLISH", "45A", { title: "Literature", days: "TuTh", start: 600, end: 660 }),
+  ];
+  const catalog: Catalog = {
+    term: "fall-2026",
+    courses: candidates.map(item => item.cand.course),
+    sectionsByCourse: Object.fromEntries(candidates.map(item => [item.cand.course.id, item.cand.section ? [item.cand.section] : []])),
+    builtAt: new Date().toISOString(),
+  };
+  const ranked = rankCatalog(catalog, {}, {
+    subject: "HISTORY",
+    minCourseNumber: 1,
+    maxCourseNumber: 99,
+    excludedDays: ["F"],
+  }, () => undefined);
+  assert.deepEqual(ranked.map(item => item.cand.course.number), ["7A"]);
+});
+
+test("rankCatalog uses topic relevance instead of returning unrelated Math courses", () => {
+  const analysis = rc("MATH", "104", { title: "Introduction to Analysis", days: "TuTh" });
+  analysis.cand.course.description = "The real number system, sequences, limits, and continuous functions.";
+  const economics = rc("MATH", "C103", { title: "Introduction to Mathematical Economics", days: "TuTh" });
+  economics.cand.course.description = "Applications of mathematics to economic theory.";
+  const catalog: Catalog = {
+    term: "fall-2026",
+    courses: [economics.cand.course, analysis.cand.course],
+    sectionsByCourse: {
+      [analysis.cand.course.id]: [analysis.cand.section!],
+      [economics.cand.course.id]: [economics.cand.section!],
+    },
+    builtAt: new Date().toISOString(),
+  };
+  const ranked = rankCatalog(catalog, {}, {
+    subject: "MATH",
+    minCourseNumber: 100,
+    maxCourseNumber: 199,
+    topicQuery: "real analysis",
+  }, () => undefined);
+  assert.deepEqual(ranked.map(item => item.cand.course.number), ["104"]);
 });

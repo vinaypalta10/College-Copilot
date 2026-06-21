@@ -596,10 +596,10 @@ async function searchProfessors() {
       trace.innerHTML = `
         <div class="trace-head">
           <strong>Faculty search</strong>
-          <span>${esc(result.mode)} · ${result.count || 0} result(s)</span>
+          <span>${result.directorySize ? `${result.directorySize.toLocaleString()} faculty indexed · ` : ""}${result.count || 0} result(s)</span>
         </div>
         <div class="trace-steps">
-          ${(result.sources || []).map(source => `<span class="ok">official source: ${esc(source)}</span>`).join("")}
+          <span class="ok">${result.mode === "imported-berkeley-directory" ? "searched cached official Berkeley directories" : "live EECS fallback"}</span>
         </div>`;
     }
     if (!result.professors?.length) {
@@ -625,6 +625,7 @@ function renderProfessors(root, professors) {
         <h3>${esc(p.name)}</h3>
         <div class="course-meta">
           ${p.title ? `<span class="tag">${esc(p.title)}</span>` : ""}
+          ${(p.departments || []).slice(0, 2).map(department => `<span class="tag">${esc(department)}</span>`).join("")}
           ${p.email ? `<span class="tag">email</span>` : ""}
           <span class="tag good">Berkeley faculty page</span>
         </div>
@@ -655,6 +656,7 @@ function showProfessorDialog(professor) {
     ${professor.title ? `<p class="muted">${esc(professor.title)}</p>` : ""}
     <div class="modal-grid">
       <div><strong>Email</strong><span>${professor.email ? `<a href="mailto:${esc(professor.email)}">${esc(professor.email)}</a>` : "Not listed"}</span></div>
+      <div><strong>Department</strong><span>${esc((professor.departments || []).join(", ") || "Not listed")}</span></div>
       <div><strong>Research field</strong><span>${esc(professor.field || "Not listed")}</span></div>
       <div><strong>Source</strong><span><a href="${esc(professor.source)}" target="_blank" rel="noopener">${esc(professor.sourceName || "Berkeley faculty page")}</a></span></div>
     </div>

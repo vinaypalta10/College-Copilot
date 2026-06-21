@@ -9,6 +9,7 @@
     "start": "tsx src/server.ts",
     "clean:legacy-data": "tsx src/scripts/clean-legacy-data.ts",
     "import:courses": "tsx src/scripts/import-courses.ts",
+    "import:professors": "tsx src/scripts/import-professors.ts",
     "test": "node --test --import tsx tests/*.test.ts"
   },
   "dependencies": {

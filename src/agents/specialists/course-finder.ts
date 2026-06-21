@@ -16,6 +16,11 @@ export interface CourseFinderInput {
   subject?: string | null;
   openOnly?: boolean;
   limit?: number;
+  minCourseNumber?: number | null;
+  maxCourseNumber?: number | null;
+  allowedDays?: string[];
+  excludedDays?: string[];
+  topicQuery?: string | null;
 }
 export interface CourseFinderOutput { candidates: RankedCourse[]; total: number; summary: string }
 
@@ -23,6 +28,11 @@ export async function findCourses(ctx: AgentContext, input: CourseFinderInput): 
   const ranked = await rankCoursesCached(ctx.repo, input.term, input.prefs, {
     subject: input.subject ?? null,
     openOnly: input.openOnly ?? false,
+    minCourseNumber: input.minCourseNumber,
+    maxCourseNumber: input.maxCourseNumber,
+    allowedDays: input.allowedDays,
+    excludedDays: input.excludedDays,
+    topicQuery: input.topicQuery,
   });
   const candidates = ranked.slice(0, input.limit ?? 40);
   return {

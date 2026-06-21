@@ -187,3 +187,39 @@ CREATE TABLE IF NOT EXISTS saved_plans (
 );
 
 CREATE INDEX IF NOT EXISTS idx_saved_plans_user ON saved_plans(user_id, term);
+
+-- Berkeley faculty imported from official campus and department directories.
+-- JSON columns preserve multi-department appointments and multiple source pages
+-- without requiring a schema change when a new directory adapter is added.
+CREATE TABLE IF NOT EXISTS professors (
+  id                  TEXT PRIMARY KEY,
+  name                TEXT NOT NULL,
+  normalized_name     TEXT NOT NULL,
+  email               TEXT,
+  title               TEXT,
+  departments         TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  research_interests  TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  bio                 TEXT,
+  profile_url         TEXT,
+  image_url           TEXT,
+  source_names        TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  source_urls         TEXT NOT NULL DEFAULT '[]', -- JSON: string[]
+  imported_at         TEXT NOT NULL,
+  last_seen_at        TEXT NOT NULL,
+  active              INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_professors_email
+  ON professors(lower(email)) WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_professors_normalized_name ON professors(normalized_name);
+CREATE INDEX IF NOT EXISTS idx_professors_active ON professors(active);
+
+CREATE TABLE IF NOT EXISTS professor_import_runs (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  started_at    TEXT NOT NULL,
+  finished_at   TEXT,
+  source_count  INTEGER NOT NULL DEFAULT 0,
+  seen_count    INTEGER NOT NULL DEFAULT 0,
+  saved_count   INTEGER NOT NULL DEFAULT 0,
+  errors        TEXT NOT NULL DEFAULT '[]' -- JSON: string[]
+);
