@@ -14,6 +14,7 @@ import type { TargetRow } from "../db/repo.ts";
 import { prefsFromProfile } from "../scorer/candidates.ts";
 import { scoreOpportunity } from "../scorer/opportunityScore.ts";
 import { rememberAgentEvent } from "../memory/agentMemory.ts";
+import { searchResearchLabs } from "./research-opportunities/lab-opportunities.ts";
 
 const USER_AGENT = "CollegeCopilot/0.3 opportunity-discovery";
 
@@ -43,13 +44,84 @@ export interface OpportunityResult {
   evidence: string | null;
   fitScore: number;
   reasons: string[];
+  topics?: string[];
 }
 
 export interface OpportunitySearchOutput {
-  mode: "live-agent";
+  mode: "live-agent" | "lab-directory";
   memory: "redis" | "redis-rest" | "disabled";
   steps: Array<{ agent: string; ok: boolean; summary: string }>;
   opportunities: OpportunityResult[];
+}
+
+async function discoverResearchLabs(input: OpportunitySearchInput, ctx: AgentContext): Promise<OpportunitySearchOutput> {
+  const query = input.query?.trim() || "";
+  const limit = Math.min(input.limit ?? 12, 30);
+  const prefs = prefsFromProfile(ctx.repo.getProfile(input.userId));
+  const labs = searchResearchLabs(query).slice(0, limit);
+  const now = new Date().toISOString();
+  const steps: OpportunitySearchOutput["steps"] = [
+    { agent: "research-source-planner", ok: true, summary: "Selected the official Berkeley lab directory." },
+    { agent: "research-search-agent", ok: true, summary: `Matched ${labs.length} lab(s)${query ? ` for \"${query}\"` : ""}.` },
+  ];
+
+  const ranked = labs
+    .map((lab, index) => {
+      const row: TargetRow = {
+        id: stableId(input.userId, "research", lab.url, lab.name),
+        user_id: input.userId,
+        priority: index + 1,
+        path: "A",
+        name: lab.name,
+        lab: lab.university,
+        project: lab.description,
+        fit: lab.description,
+        contact: lab.url,
+        sentence: null,
+        source: lab.url,
+        notes: "Official lab directory result.",
+        evidence: `Official lab page: ${lab.url}`,
+        score: query ? 6 : 4,
+        score_facets: JSON.stringify({ kind: "lab", topics: lab.topics }),
+        extracted_at: now,
+        last_seen_at: now,
+        auto: 1,
+        category: "research",
+      };
+      return { row, topics: lab.topics, fit: scoreOpportunity(row, prefs) };
+    })
+    .sort((a, b) => b.fit.score - a.fit.score);
+
+  ranked.forEach(({ row }, index) => ctx.repo.upsertTarget({ ...row, priority: index + 1 }));
+  steps.push({ agent: "research-summarizer", ok: true, summary: "Ranked labs against the student profile and kept official source links." });
+
+  const memory = await rememberAgentEvent({
+    userId: input.userId,
+    kind: "opportunity-search:research-labs",
+    key: query || "all-labs",
+    value: { query, labs: ranked.map(({ row }) => row.name) },
+    ttlSec: 60 * 60 * 24 * 7,
+  });
+
+  return {
+    mode: "lab-directory",
+    memory: memory.backend,
+    steps,
+    opportunities: ranked.map(({ row, fit, topics }) => ({
+      id: row.id,
+      name: row.name,
+      org: row.lab,
+      project: row.project,
+      fit: row.fit,
+      contact: row.contact,
+      source: row.source,
+      category: "research",
+      evidence: row.evidence,
+      fitScore: fit.score,
+      reasons: fit.reasons,
+      topics,
+    })),
+  };
 }
 
 function sourcePlan(category: "research" | "industry", query: string): SourcePlan[] {
@@ -185,6 +257,8 @@ function extractCandidates(source: SourcePlan, html: string, query: string, user
 }
 
 export async function discoverOpportunities(input: OpportunitySearchInput, ctx: AgentContext): Promise<OpportunitySearchOutput> {
+  if (input.category === "research") return discoverResearchLabs(input, ctx);
+
   const limit = Math.min(input.limit ?? 12, 30);
   const query = input.query?.trim() || "";
   const prefs = prefsFromProfile(ctx.repo.getProfile(input.userId));

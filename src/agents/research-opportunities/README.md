@@ -1,73 +1,38 @@
-# Research Opportunities Agent System
+# Research Lab Opportunities
 
-Goal: discover undergraduate research opportunities across the US, not only at
-Berkeley.
+Goal: help students find Berkeley research labs that match their interests.
 
-Sponsor target: Fetch.ai / ASI:One.
-
-## What This System Owns
-
-- Searching for research programs, labs, faculty pages, PhD student project
-  pages, REUs, and university research centers.
-- Extracting structured opportunity records from messy webpages.
-- Deduplicating repeated programs/labs.
-- Summarizing why an opportunity may be relevant.
-- Helping draft outreach, without sending anything automatically.
-
-## Proposed Agents
+## Simple Workflow
 
 ```text
-research-source-planner
-  chooses search targets and source categories
-
-research-search-agent
-  performs web/search API calls
-
-research-page-reader
-  fetches and cleans pages
-
-research-extractor
-  turns pages into structured opportunity records
-
-research-deduper
-  merges duplicate labs/programs/people
-
-research-summarizer
-  explains what was found and what to inspect next
-
-outreach-helper
-  drafts optional outreach text for user review
+student enters a topic
+  -> research-source-planner selects the official lab directory
+  -> research-search-agent matches names, descriptions, and topics
+  -> research-summarizer ranks labs against the student profile
+  -> frontend shows compact cards linked to official lab pages
 ```
 
-## Minimum Opportunity Schema
+The first version intentionally returns labs rather than scraping individual
+openings. Lab pages change frequently, so the official page remains the source
+of truth for current projects, eligibility, and application instructions.
 
-```ts
-interface ResearchOpportunity {
-  title: string;
-  organization: string;
-  university?: string;
-  location?: string;
-  url: string;
-  opportunityType: "lab" | "reu" | "program" | "faculty" | "phd_project";
-  topics: string[];
-  eligibility?: string;
-  deadline?: string;
-  contact?: string;
-  evidence: string;
-  source: string;
-}
+## Lab Record
+
+Each lab has:
+
+- A stable name and official URL.
+- A short description.
+- Research topics used for search.
+- A profile-aware match score and reason.
+
+Search results are stored per user so they can be reopened safely. Redis records
+short-lived search memory when configured. The system never contacts a lab or
+sends an email automatically.
+
+## Files
+
+```text
+lab-opportunities.ts              typed lab directory + deterministic search
+../opportunity-orchestrator.ts    ranking, persistence, and agent trace
+../../api/opportunities.ts        authenticated API
 ```
-
-## Fetch.ai Story
-
-This system is a strong Fetch.ai candidate because it naturally performs:
-
-- intent understanding
-- source planning
-- multi-step tool use
-- web retrieval
-- extraction
-- deduplication
-- user-facing action suggestions
-
-The final Fetch.ai wrapper should expose this through Agentverse / ASI:One.

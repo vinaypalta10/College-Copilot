@@ -99,13 +99,10 @@ $("#logoutBtn").addEventListener("click", async () => {
   location.reload();
 });
 
-$$("[data-find-opps]").forEach(btn => btn.addEventListener("click", () => {
-  const category = btn.dataset.findOpps;
-  const rootSel = category === "industry" ? "#jobsList" : "#programsList";
-  const querySel = category === "industry" ? "#jobsQuery" : "#programsQuery";
-  const traceSel = category === "industry" ? "#jobsTrace" : "#programsTrace";
-  searchOpportunities(category, rootSel, querySel, traceSel, btn);
-}));
+$("#findLabsBtn")?.addEventListener("click", searchLabs);
+$("#labsQuery")?.addEventListener("keydown", (e) => { if (e.key === "Enter") searchLabs(); });
+$("#findJobsBtn")?.addEventListener("click", () => searchJobs($("#findJobsBtn")));
+$("#jobsQuery")?.addEventListener("keydown", (e) => { if (e.key === "Enter") searchJobs($("#findJobsBtn")); });
 $("#findProfessorsBtn")?.addEventListener("click", searchProfessors);
 $("#professorQuery")?.addEventListener("keydown", (e) => { if (e.key === "Enter") searchProfessors(); });
 
@@ -120,8 +117,8 @@ function switchTab(name) {
   $$(".panel-view").forEach(v => v.hidden = v.dataset.view !== name);
   if (name === "schedule") renderCalendar();
   if (name === "professors") initProfessorPanel();
-  if (name === "programs") loadOpportunities("research", "#programsList");
-  if (name === "jobs") loadOpportunities("industry", "#jobsList");
+  if (name === "programs") initLabsPanel();
+  if (name === "jobs") loadJobs();
 }
 $("#tabs").addEventListener("click", (e) => {
   const tab = e.target.closest(".tab");
@@ -491,90 +488,211 @@ function compareSelectedPlans() {
     </article>`).join("")}</div>`;
 }
 
-// ───────── Opportunities (Research + Jobs) ─────────
-async function loadOpportunities(category, rootSel) {
-  const root = $(rootSel);
-  root.innerHTML = `<div class="empty">No saved ${category === "industry" ? "job" : "research"} results yet. Run an agent search above.</div>`;
-  try {
-    const { opportunities } = await api(`/opportunities?category=${category}`);
-    if (!opportunities?.length) {
-      return;
-    }
-    renderOpportunities(root, category, opportunities);
-  } catch (err) {
-    root.innerHTML = `<div class="empty">Couldn't load cached ${escapeHtml(category)} results. (${escapeHtml(err.message)})</div>`;
-  }
+// ───────── Research labs ─────────
+function initLabsPanel() {
+  const root = $("#labsList");
+  if (!root || root.dataset.ready) return;
+  root.dataset.ready = "1";
+  root.innerHTML = `<div class="empty lab-empty">Search a research topic to find matching Berkeley labs.</div>`;
 }
 
-async function searchOpportunities(category, rootSel, querySel, traceSel, btn) {
-  const root = $(rootSel);
-  const trace = $(traceSel);
-  const query = $(querySel)?.value?.trim() || "";
+async function searchLabs() {
+  const root = $("#labsList");
+  const status = $("#labsStatus");
+  const btn = $("#findLabsBtn");
+  const query = $("#labsQuery")?.value?.trim() || "";
+  if (!root || !btn) return;
+
   btn.disabled = true;
-  btn.textContent = "Searching…";
-  root.innerHTML = `<div class="empty">Agents are searching live sources…</div>`;
-  trace.hidden = true;
+  btn.textContent = "Searching...";
+  status.textContent = "Finding labs that match your interests...";
+  root.innerHTML = "";
   try {
     const result = await api("/opportunities/search", {
       method: "POST",
-      body: { category, query, limit: 12 },
+      body: { category: "research", query, limit: 12 },
     });
-    renderAgentTrace(trace, result);
-    if (!result.opportunities?.length) {
-      root.innerHTML = `<div class="empty">No matches found from the live sources. Try a broader query.</div>`;
+    const labs = result.opportunities || [];
+    status.textContent = labs.length ? `${labs.length} matching lab${labs.length === 1 ? "" : "s"}` : "No matching labs";
+    if (!labs.length) {
+      root.innerHTML = `<div class="empty lab-empty">Try a broader topic such as AI, design, robotics, or systems.</div>`;
       return;
     }
-    renderOpportunities(root, category, result.opportunities);
+    renderLabs(root, labs);
   } catch (err) {
-    root.innerHTML = `<div class="empty">Opportunity agents failed. (${escapeHtml(err.message)})</div>`;
+    status.textContent = "Search unavailable";
+    root.innerHTML = `<div class="empty lab-empty">We couldn't load labs right now. ${escapeHtml(err.message)}</div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = category === "industry" ? "Find jobs" : "Find programs";
+    btn.textContent = "Find labs";
   }
 }
 
-function renderAgentTrace(root, result) {
-  if (!root) return;
-  const steps = result.steps || [];
-  root.hidden = false;
-  root.innerHTML = `
-    <div class="trace-head">
-      <strong>Agent run</strong>
-      <span>${escapeHtml(result.mode || "live-agent")} · memory: ${escapeHtml(result.memory || "disabled")}</span>
-    </div>
-    <div class="trace-steps">
-      ${steps.map(s => `<span class="${s.ok ? "ok" : "warn"}">${escapeHtml(s.agent)}: ${escapeHtml(s.summary)}</span>`).join("")}
-    </div>`;
+function renderLabs(root, labs) {
+  root.innerHTML = labs.map((lab) => {
+    const sourceUrl = safeExternalUrl(lab.source);
+    const reason = (lab.reasons || [])[0] || "Listed in the Berkeley research lab directory.";
+    return `<article class="lab-card">
+      <div class="lab-card-top">
+        <span class="lab-org">${escapeHtml(lab.org || "UC Berkeley")}</span>
+        <span class="lab-match">${Math.round(lab.fitScore || 0)}% match</span>
+      </div>
+      <h3>${escapeHtml(lab.name || "Research lab")}</h3>
+      <p>${escapeHtml(lab.project || "Visit the official lab page to learn about current research.")}</p>
+      <div class="lab-topics">${(lab.topics || []).slice(0, 4).map((topic) => `<span>${escapeHtml(topic)}</span>`).join("")}</div>
+      <p class="lab-reason">${escapeHtml(reason)}</p>
+      ${sourceUrl ? `<a class="btn lab-link" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Visit lab <span aria-hidden="true">↗</span></a>` : ""}
+    </article>`;
+  }).join("");
 }
 
-function renderOpportunities(root, category, opportunities) {
-  root.innerHTML = opportunities.map(o => {
-      const reasons = (o.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join("");
-      const sourceUrl = safeExternalUrl(o.url || o.source);
-      return `<article class="course-card">
-        <div>
-          <h3>${escapeHtml(o.name || o.project || "Opportunity")}</h3>
-          <div class="course-meta">
-            <span class="tag">${escapeHtml(o.org || "org")}</span>
-            <span class="tag ${category === "industry" ? "warn" : "good"}">${escapeHtml(category)}</span>
-            ${o.contact ? `<span class="tag">has contact</span>` : ""}
-          </div>
-          <ul class="reasons">${reasons}</ul>
-          ${o.project ? `<p class="desc">${escapeHtml(o.project)}</p>` : ""}
-          ${o.evidence ? `<p class="desc">${escapeHtml(o.evidence.slice(0, 180))}${o.evidence.length > 180 ? "…" : ""}</p>` : ""}
-        </div>
-        <div class="score-badge ${scoreClass(o.fitScore)}">
-          <small>Match score</small>
-          <span>${o.fitScore}</span>
-        </div>
-        <div class="card-actions">
-          ${sourceUrl ? `<a class="btn" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open source ↗</a>` : ""}
-          <button data-draft="${escapeHtml(o.id)}">✎ Draft outreach</button>
-        </div>
-      </article>`;
-  }).join("");
-  $$("[data-draft]", root).forEach(b => b.addEventListener("click", () => draftOutreach(b.dataset.draft, b)));
+
+// ───────── Jobs / Internships (NormalizedJob schema) ─────────
+const EMPLOYMENT_LABEL = {
+  internship: "Internship",
+  new_grad: "New grad",
+  part_time: "Part-time",
+  full_time: "Full-time",
+};
+
+async function loadJobs() {
+  const root = $("#jobsList");
+  if (!root) return;
+  root.innerHTML = `<div class="empty">No saved jobs yet. Run an agent search above.</div>`;
+  try {
+    const { jobs } = await api("/jobs");
+    if (!jobs?.length) return;
+    renderJobs(root, jobs);
+  } catch (err) {
+    root.innerHTML = `<div class="empty">Couldn't load cached jobs. (${escapeHtml(err.message)})</div>`;
+  }
 }
+
+async function searchJobs(btn) {
+  const root = $("#jobsList");
+  const query = $("#jobsQuery")?.value?.trim() || "";
+  if (!root || !btn) return;
+  btn.disabled = true;
+  btn.textContent = "Searching…";
+  root.innerHTML = `<div class="empty">Agents are searching live job boards…</div>`;
+  try {
+    const result = await api("/jobs/search", { method: "POST", body: { query, limit: 12 } });
+    if (!result.jobs?.length) {
+      root.innerHTML = `<div class="empty">No matching openings found. Try a broader query.</div>`;
+      return;
+    }
+    renderJobs(root, result.jobs);
+  } catch (err) {
+    root.innerHTML = `<div class="empty">Job agents failed. (${escapeHtml(err.message)})</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Find jobs";
+  }
+}
+
+function chipList(items, max = 6) {
+  if (!items?.length) return "";
+  const shown = items.slice(0, max).map(s => `<span class="tag">${escapeHtml(s)}</span>`).join("");
+  const more = items.length > max ? `<span class="tag muted-tag">+${items.length - max}</span>` : "";
+  return shown + more;
+}
+
+const jobCache = new Map();
+
+function renderJobs(root, jobs) {
+  jobs.forEach(j => jobCache.set(j.id, j));
+  root.innerHTML = jobs.map(j => {
+    const sourceUrl = safeExternalUrl(j.url);
+    return `<article class="course-card job-card">
+      <div>
+        <h3>${escapeHtml(j.title || "Role")}</h3>
+        <div class="course-meta">
+          <span class="tag">${escapeHtml(j.company || "Company")}</span>
+          <span class="tag warn">${escapeHtml(EMPLOYMENT_LABEL[j.employmentType] || j.employmentType || "Role")}</span>
+          ${j.location ? `<span class="tag">${escapeHtml(j.location)}</span>` : ""}
+          ${j.applicationDeadline ? `<span class="tag good">Apply by ${escapeHtml(j.applicationDeadline)}</span>` : ""}
+        </div>
+        <ul class="reasons">${(j.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join("")}</ul>
+        ${j.requiredSkills?.length ? `<p class="job-section"><strong>Required</strong> ${chipList(j.requiredSkills)}</p>` : ""}
+        ${j.preferredSkills?.length ? `<p class="job-section"><strong>Preferred</strong> ${chipList(j.preferredSkills)}</p>` : ""}
+        ${j.responsibilities?.length ? `<details class="job-details"><summary>Responsibilities (${j.responsibilities.length})</summary><ul>${j.responsibilities.map(r => `<li>${escapeHtml(r)}</li>`).join("")}</ul></details>` : ""}
+        ${j.qualifications?.length ? `<details class="job-details"><summary>Qualifications (${j.qualifications.length})</summary><ul>${j.qualifications.map(r => `<li>${escapeHtml(r)}</li>`).join("")}</ul></details>` : ""}
+      </div>
+      <div class="card-actions">
+        ${sourceUrl ? `<a class="btn" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open posting ↗</a>` : ""}
+        <button data-resume="${escapeHtml(j.id)}">✎ Resume prompt</button>
+        <button data-network="${escapeHtml(j.id)}">☕ Networking</button>
+      </div>
+    </article>`;
+  }).join("");
+  $$("[data-resume]", root).forEach(b => b.addEventListener("click", () => generateResumePrompt(b.dataset.resume, b)));
+  $$("[data-network]", root).forEach(b => b.addEventListener("click", () => findNetworking(b.dataset.network, b)));
+}
+
+function openJobDialog(html) {
+  const dialog = $("#jobDialog");
+  const body = $("#jobDialogBody");
+  if (!dialog || !body) return;
+  body.innerHTML = html;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+}
+
+async function generateResumePrompt(jobId, btn) {
+  const job = jobCache.get(jobId);
+  btn.disabled = true; btn.textContent = "Building…";
+  try {
+    const { prompt } = await api("/jobs/resume-prompt", { method: "POST", body: { jobId } });
+    openJobDialog(`
+      <h2>Resume-tailoring prompt</h2>
+      <p class="muted">Copy this, paste it into Claude or ChatGPT, then paste your resume where indicated. Nothing is sent for you.</p>
+      <p class="small muted">${escapeHtml(job ? `${job.title} · ${job.company}` : "")}</p>
+      <textarea id="resumePromptText" class="prompt-box" readonly rows="16">${escapeHtml(prompt)}</textarea>
+      <div class="card-actions">
+        <button class="btn primary" id="copyResumePrompt">Copy prompt</button>
+        <a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener">Open Claude ↗</a>
+      </div>`);
+    $("#copyResumePrompt")?.addEventListener("click", () => copyText(prompt, "Prompt copied — paste it with your resume."));
+  } catch (err) {
+    toast(`Resume prompt: ${err.message}`);
+  } finally {
+    btn.disabled = false; btn.textContent = "✎ Resume prompt";
+  }
+}
+
+async function findNetworking(jobId, btn) {
+  btn.disabled = true; btn.textContent = "Finding…";
+  try {
+    const r = await api("/jobs/networking", { method: "POST", body: { jobId } });
+    const leads = (r.leads || []).map(l => `
+      <li>
+        <span>${escapeHtml(l.label)}</span>
+        <a class="btn small" href="${escapeHtml(safeExternalUrl(l.searchUrl))}" target="_blank" rel="noopener noreferrer">Search ↗</a>
+      </li>`).join("");
+    openJobDialog(`
+      <h2>Networking leads — ${escapeHtml(r.job?.company || "")}</h2>
+      <p class="small warn-text">${escapeHtml(r.safetyNote || "Nothing is sent — review and click manually.")}</p>
+      <ul class="lead-list">${leads}</ul>
+      <h3>Draft connection note</h3>
+      <textarea class="prompt-box" readonly rows="3">${escapeHtml(r.connectionNote || "")}</textarea>
+      <div class="card-actions"><button class="btn" id="copyConnNote">Copy note</button></div>
+      <h3>Draft coffee-chat message</h3>
+      <textarea class="prompt-box" readonly rows="8">${escapeHtml(r.coffeeChatMessage || "")}</textarea>
+      <div class="card-actions"><button class="btn" id="copyCoffee">Copy message</button></div>`);
+    $("#copyConnNote")?.addEventListener("click", () => copyText(r.connectionNote, "Connection note copied."));
+    $("#copyCoffee")?.addEventListener("click", () => copyText(r.coffeeChatMessage, "Message copied."));
+  } catch (err) {
+    toast(`Networking: ${err.message}`);
+  } finally {
+    btn.disabled = false; btn.textContent = "☕ Networking";
+  }
+}
+
+function copyText(text, msg) {
+  navigator.clipboard?.writeText(text).then(() => toast(msg)).catch(() => toast("Copy failed — select the text manually."));
+}
+
+$("#jobDialog .modal-close")?.addEventListener("click", () => $("#jobDialog")?.close());
+$("#jobDialog")?.addEventListener("click", (e) => { if (e.target.id === "jobDialog") e.target.close(); });
 
 function initProfessorPanel() {
   const root = $("#professorList");
@@ -674,22 +792,5 @@ $("#professorDialog")?.addEventListener("click", (e) => {
   if (e.target.id === "professorDialog") e.target.close();
 });
 
-async function draftOutreach(targetId, btn) {
-  btn.disabled = true; btn.textContent = "Drafting…";
-  try {
-    const r = await api("/opportunities/draft", { method: "POST", body: { targetId } });
-    const draft = r.draft || r.email || "";
-    // Open Gmail compose with the draft prefilled (nothing sends automatically).
-    const subject = (draft.match(/^Subject:\s*(.+)$/m) || [])[1] || "Reaching out";
-    const body = draft.replace(/^Subject:\s*.+\n?/m, "").trim();
-    const url = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(url, "_blank", "noopener");
-    toast("Draft ready — Gmail compose opened.");
-  } catch (err) {
-    toast(`Draft: ${err.message}`);
-  } finally {
-    btn.disabled = false; btn.textContent = "✎ Draft outreach";
-  }
-}
 
 boot().catch(err => { console.error(err); toast(err.message); });
