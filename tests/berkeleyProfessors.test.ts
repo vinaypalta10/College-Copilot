@@ -226,3 +226,37 @@ test("person-name searches do not return unrelated biography matches", () => {
     db.close();
   }
 });
+
+test("capitalized research topics are not mistaken for professor names", () => {
+  const db = new Database(":memory:");
+  db.exec(schema);
+  const repo = new Repo(db);
+  const now = new Date().toISOString();
+  try {
+    repo.upsertProfessor({
+      id: "tataru",
+      name: "Daniel Tataru",
+      normalized_name: "daniel tataru",
+      email: "tataru@berkeley.edu",
+      title: "Professor",
+      departments: JSON.stringify(["Dept of Mathematics"]),
+      research_interests: JSON.stringify(["partial differential equations", "nonlinear waves"]),
+      bio: "Researches partial differential equations.",
+      profile_url: "https://example.com/tataru",
+      image_url: null,
+      source_names: JSON.stringify(["Test"]),
+      source_urls: JSON.stringify([]),
+      imported_at: now,
+      last_seen_at: now,
+      active: 1,
+    });
+    const results = searchImportedBerkeleyProfessors(db, {
+      query: "Differential Equations",
+      profileTerms: [],
+      limit: 12,
+    });
+    assert.equal(results[0]?.name, "Daniel Tataru");
+  } finally {
+    db.close();
+  }
+});

@@ -245,13 +245,6 @@ function directoryScore(row: ProfessorRow, query: string, profileTerms: string[]
   return score;
 }
 
-function looksLikePersonName(query: string): boolean {
-  const words = query.trim().split(/\s+/).filter(Boolean);
-  return words.length >= 2
-    && words.length <= 4
-    && words.every(word => /^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ.'’-]*$/.test(word));
-}
-
 /** Search the persistent imported directory. Returns [] before the first import. */
 export function searchImportedBerkeleyProfessors(
   db: DB,
@@ -262,8 +255,15 @@ export function searchImportedBerkeleyProfessors(
   if (!rows.length) return [];
   const query = input.query?.trim() || "";
   const limit = Math.min(input.limit ?? 12, 30);
-  const nameQuery = looksLikePersonName(query);
   const normalizedQuery = normalizeProfessorName(query);
+  // Enter strict name-search mode only when the directory actually contains a
+  // matching name. Capitalized research topics such as "Differential Equations"
+  // must still search expertise and biographies.
+  const nameQuery = Boolean(normalizedQuery) && rows.some(row =>
+    row.normalized_name === normalizedQuery
+    || row.normalized_name.includes(normalizedQuery)
+    || normalizedQuery.includes(row.normalized_name)
+  );
   return rows
     .map(row => ({ row, score: directoryScore(row, query, input.profileTerms || []) }))
     .filter(({ row, score }) => {
