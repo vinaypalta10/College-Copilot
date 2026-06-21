@@ -31,10 +31,15 @@
         <div class="brand-title"><h1>College Copilot</h1><span class="brand-sub" id="termLabel">Fall 2026</span></div>
       </div>
       <nav class="tabs" id="tabs">
-        <button class="tab active" data-tab="discover">Discover</button>
+        <button class="tab active" data-tab="discover">Classes</button>
         <button class="tab" data-tab="schedule">Schedule</button>
-        <button class="tab" data-tab="research">Research</button>
-        <button class="tab" data-tab="jobs">Jobs</button>
+        <div class="tab-menu">
+          <button id="opportunitiesMenuBtn" class="tab menu-trigger" type="button" aria-haspopup="true" aria-expanded="false">Opportunities ▾</button>
+          <div class="tab-menu-options">
+            <button class="tab" data-tab="research">Research</button>
+            <button class="tab" data-tab="jobs">Jobs / Internships</button>
+          </div>
+        </div>
         <button class="tab" data-tab="profile">Profile</button>
       </nav>
       <div class="topbar-actions">
@@ -74,6 +79,7 @@
         <div id="cartBar" class="cart-bar"></div>
         <div id="calendar" class="calendar"></div>
         <div id="savedPlans" class="saved-plans"></div>
+        <div id="scheduleCompare" class="schedule-compare"></div>
       </section>
 
       <!-- Research -->

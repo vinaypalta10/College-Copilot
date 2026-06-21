@@ -41,6 +41,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb
 .tabs { display: flex; gap: 4px; margin-left: 10px; }
 .tab { background: transparent; border: none; padding: 8px 14px; border-radius: 8px; color: var(--muted); font-weight: 600; }
 .tab.active { background: var(--chip); color: var(--ink); }
+.tab-menu { position: relative; }
+.tab-menu-options { display: none; position: absolute; top: calc(100% + 6px); left: 0; min-width: 180px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); z-index: 30; }
+.tab-menu:hover .tab-menu-options, .tab-menu:focus-within .tab-menu-options, .tab-menu.open .tab-menu-options { display: grid; }
+.tab-menu-options .tab { width: 100%; text-align: left; white-space: nowrap; }
 .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .user-chip { font-size: 13px; color: var(--muted); }
 
@@ -80,7 +84,9 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 .tag.bad { background: color-mix(in srgb, var(--bad) 16%, var(--card)); color: var(--bad); }
 .reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
 .reasons li { margin: 2px 0; }
-.score-badge { font-weight: 800; font-size: 20px; min-width: 56px; height: 56px; border-radius: 12px; display: grid; place-items: center; background: var(--chip); align-self: start; }
+.score-badge { font-weight: 800; min-width: 76px; min-height: 58px; padding: 7px 8px; border-radius: 12px; display: grid; place-items: center; align-content: center; gap: 2px; line-height: 1.05; text-align: center; background: var(--chip); align-self: start; }
+.score-badge small { font-size: 9px; font-weight: 600; color: currentColor; opacity: .78; text-transform: uppercase; letter-spacing: .04em; }
+.score-badge span { font-size: 18px; }
 .score-badge.s-hi { background: color-mix(in srgb, var(--good) 22%, var(--card)); color: var(--good); }
 .score-badge.s-mid { background: color-mix(in srgb, var(--warn) 20%, var(--card)); color: var(--warn); }
 .score-badge.s-lo { background: color-mix(in srgb, var(--bad) 18%, var(--card)); color: var(--bad); }
@@ -115,6 +121,22 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 .cal-event.conflict { background: color-mix(in srgb, var(--bad) 22%, var(--card)); border-color: var(--bad); }
 .saved-plans { margin-top: 18px; display: grid; gap: 8px; }
 .saved-plan { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+.saved-plan > div, .saved-plans-head { display: flex; gap: 8px; align-items: center; }
+.saved-plans-head { justify-content: space-between; }
+.schedule-compare { margin-top: 22px; }
+.comparison-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.comparison-grid .comparison-card { grid-column: span 4; }
+.comparison-grid.count-2 .comparison-card,
+.comparison-grid.count-3 .comparison-card,
+.comparison-grid.count-4 .comparison-card { grid-column: span 6; }
+.comparison-grid.count-3 .comparison-card:last-child { grid-column: 4 / span 6; }
+.comparison-grid.count-5 .comparison-card:nth-child(4) { grid-column: 3 / span 4; }
+.comparison-grid.count-5 .comparison-card:nth-child(5) { grid-column: 7 / span 4; }
+.comparison-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
+.comparison-card h4 { margin: 0 0 8px; }
+.calendar.compact, .calendar.compact .cal-col { min-height: 280px; }
+.calendar.compact .cal-event { font-size: 9px; padding: 2px; }
+.calendar.compact .cal-hour { font-size: 8px; }
 
 .empty { text-align: center; color: var(--muted); padding: 40px; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 10px; box-shadow: var(--shadow); z-index: 50; opacity: 0; transition: .2s; pointer-events: none; }
@@ -123,4 +145,12 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 
 @media (max-width: 640px) {
   .academic-selection, #profileForm .row { grid-template-columns: 1fr; }
+  .comparison-grid { grid-template-columns: 1fr; }
+  .comparison-grid .comparison-card,
+  .comparison-grid.count-2 .comparison-card,
+  .comparison-grid.count-3 .comparison-card,
+  .comparison-grid.count-3 .comparison-card:last-child,
+  .comparison-grid.count-4 .comparison-card,
+  .comparison-grid.count-5 .comparison-card:nth-child(4),
+  .comparison-grid.count-5 .comparison-card:nth-child(5) { grid-column: 1; }
 }

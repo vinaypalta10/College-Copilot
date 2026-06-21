@@ -40,7 +40,7 @@ function berkeleyCourseUrl(course) {
 }
 
 const COURSE_PAGE_SIZE = 60;
-const state = { me: null, courses: [], courseOffset: 0, courseCount: 0, cart: loadCart() };
+const state = { me: null, courses: [], courseOffset: 0, courseCount: 0, cart: loadCart(), savedPlans: [] };
 
 function loadCart() { try { return JSON.parse(localStorage.getItem("cc_cart") || "[]"); } catch { return []; } }
 function saveCart() { localStorage.setItem("cc_cart", JSON.stringify(state.cart)); }
@@ -98,6 +98,9 @@ $$("[data-find-opps]").forEach(btn => btn.addEventListener("click", () => {
 // ───────── Tabs ─────────
 function switchTab(name) {
   $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  $("#opportunitiesMenuBtn").classList.toggle("active", name === "research" || name === "jobs");
+  $(".tab-menu")?.classList.remove("open");
+  $("#opportunitiesMenuBtn").setAttribute("aria-expanded", "false");
   $$(".panel-view").forEach(v => v.hidden = v.dataset.view !== name);
   if (name === "schedule") renderCalendar();
   if (name === "research") loadOpportunities("research", "#researchList");
@@ -105,7 +108,17 @@ function switchTab(name) {
 }
 $("#tabs").addEventListener("click", (e) => {
   const tab = e.target.closest(".tab");
-  if (tab) switchTab(tab.dataset.tab);
+  if (tab?.dataset.tab) switchTab(tab.dataset.tab);
+});
+$("#opportunitiesMenuBtn").addEventListener("click", () => {
+  const menu = $(".tab-menu");
+  const open = menu.classList.toggle("open");
+  $("#opportunitiesMenuBtn").setAttribute("aria-expanded", String(open));
+});
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".tab-menu")) return;
+  $(".tab-menu")?.classList.remove("open");
+  $("#opportunitiesMenuBtn").setAttribute("aria-expanded", "false");
 });
 
 // ───────── Theme ─────────
@@ -265,7 +278,10 @@ function courseCard(c, { research = false } = {}) {
       <ul class="reasons">${reasons}</ul>
       ${c.description ? `<p class="desc">${c.description.slice(0, 180)}${c.description.length > 180 ? "…" : ""}</p>` : ""}
     </div>
-    <div class="score-badge ${scoreClass(c.fit.score)}">${c.fit.score}</div>
+    <div class="score-badge ${scoreClass(c.fit.score)}">
+      <small>Match score</small>
+      <span>${c.fit.score}</span>
+    </div>
     ${actions}
   </article>`;
 }
@@ -315,6 +331,8 @@ async function runAdvisor() {
 function addToCart(id) {
   const c = state.courses.find(x => x.id === id);
   if (!c || state.cart.some(x => x.id === id)) return;
+  const conflict = state.cart.find(item => sectionsConflict(item.section, c.section));
+  if (conflict) return toast(`${c.subject} ${c.number} conflicts with ${conflict.label}.`);
   state.cart.push({ id: c.id, label: `${c.subject} ${c.number}`, title: c.title, section: c.section });
   saveCart(); renderCart(); refreshCourses();
   toast(`Added ${c.subject} ${c.number}`);
@@ -343,9 +361,19 @@ function parseDayCodes(code) {
   return out;
 }
 
+function sectionsConflict(a, b) {
+  if (!a || !b || a.startMin == null || a.endMin == null || b.startMin == null || b.endMin == null) return false;
+  return parseDayCodes(a.days).some(day => parseDayCodes(b.days).includes(day)) &&
+    a.startMin < b.endMin && b.startMin < a.endMin;
+}
+
 function renderCalendar() {
   const cal = $("#calendar");
   if (!cal) return;
+  cal.innerHTML = calendarMarkup(state.cart);
+}
+
+function calendarMarkup(items) {
   const span = CAL_END - CAL_START;
   let html = `<div class="cal-head"></div>` + DAYS.map(([, full]) => `<div class="cal-head">${full}</div>`).join("");
   html += `<div class="cal-col">` + Array.from({ length: 13 }, (_, h) =>
@@ -353,7 +381,7 @@ function renderCalendar() {
 
   // Detect conflicts.
   const events = [];
-  for (const item of state.cart) {
+  for (const item of items) {
     const s = item.section;
     if (!s || s.startMin == null) continue;
     for (const d of parseDayCodes(s.days)) events.push({ day: d, start: s.startMin, end: s.endMin, label: item.label });
@@ -369,7 +397,7 @@ function renderCalendar() {
     }
     html += `</div>`;
   }
-  cal.innerHTML = html;
+  return html;
 }
 
 $("#buildScheduleBtn").addEventListener("click", async () => {
@@ -399,13 +427,39 @@ async function loadSavedPlans() {
   if (!root) return;
   try {
     const { plans } = await api("/plans");
+    state.savedPlans = plans;
     root.innerHTML = plans.length
-      ? `<h3>Saved plans</h3>` + plans.map(p => `<div class="saved-plan"><span>${p.name} · ${p.sectionIds.length} classes</span><button data-del="${p.id}">Delete</button></div>`).join("")
+      ? `<div class="saved-plans-head"><h3>Saved schedules</h3><button id="comparePlansBtn" class="btn">Compare selected</button></div>` +
+        plans.map(p => `<div class="saved-plan">
+          <label><input type="checkbox" data-compare="${p.id}"> ${p.name} · ${p.courses.length} classes</label>
+          <div><button data-load="${p.id}">Load</button><button data-del="${p.id}">Delete</button></div>
+        </div>`).join("")
       : "";
+    $$("[data-load]", root).forEach(b => b.addEventListener("click", () => {
+      const plan = state.savedPlans.find(p => p.id === b.dataset.load);
+      if (!plan) return;
+      state.cart = plan.courses;
+      saveCart(); renderCart(); renderCalendar();
+      toast(`Loaded ${plan.name}.`);
+    }));
     $$("[data-del]", root).forEach(b => b.addEventListener("click", async () => {
       await api(`/plans/${b.dataset.del}`, { method: "DELETE" }); loadSavedPlans();
     }));
+    $("#comparePlansBtn")?.addEventListener("click", compareSelectedPlans);
   } catch { root.innerHTML = ""; }
+}
+
+function compareSelectedPlans() {
+  const ids = $$("[data-compare]:checked").map(input => input.dataset.compare);
+  if (ids.length < 2) return toast("Select at least 2 saved schedules.");
+  if (ids.length > 6) return toast("Compare up to 6 schedules at a time.");
+  const plans = ids.map(id => state.savedPlans.find(plan => plan.id === id)).filter(Boolean);
+  $("#scheduleCompare").innerHTML = `<h3>Schedule comparison</h3><div class="comparison-grid count-${plans.length}">${plans.map(plan => `
+    <article class="comparison-card">
+      <h4>${plan.name}</h4>
+      <div class="calendar compact">${calendarMarkup(plan.courses)}</div>
+      <p class="small muted">${plan.courses.map(course => course.label).join(" · ")}</p>
+    </article>`).join("")}</div>`;
 }
 
 // ───────── Opportunities (Research + Jobs) ─────────
@@ -478,7 +532,10 @@ function renderOpportunities(root, category, opportunities) {
           <ul class="reasons">${reasons}</ul>
           ${o.project ? `<p class="desc">${o.project}</p>` : ""}
         </div>
-        <div class="score-badge ${scoreClass(o.fitScore)}">${o.fitScore}</div>
+        <div class="score-badge ${scoreClass(o.fitScore)}">
+          <small>Match score</small>
+          <span>${o.fitScore}</span>
+        </div>
         <div class="card-actions">
           ${o.source ? `<a class="btn" href="${o.source}" target="_blank" rel="noopener">Open source ↗</a>` : ""}
           <button data-draft="${o.id}">✎ Draft outreach</button>
