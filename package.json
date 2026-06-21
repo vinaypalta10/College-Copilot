@@ -7,8 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
-    "scan": "tsx src/scripts/scan-once.ts",
-    "migrate": "tsx src/scripts/migrate-from-json.ts",
+    "clean:legacy-data": "tsx src/scripts/clean-legacy-data.ts",
     "import:courses": "tsx src/scripts/import-courses.ts",
     "test": "node --test --import tsx tests/*.test.ts"
   },

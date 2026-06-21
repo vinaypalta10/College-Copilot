@@ -75,12 +75,21 @@ $("#logoutBtn").addEventListener("click", async () => {
   location.reload();
 });
 
+$$("[data-find-opps]").forEach(btn => btn.addEventListener("click", () => {
+  const category = btn.dataset.findOpps;
+  const rootSel = category === "industry" ? "#jobsList" : "#researchList";
+  const querySel = category === "industry" ? "#jobsQuery" : "#researchQuery";
+  const traceSel = category === "industry" ? "#jobsTrace" : "#researchTrace";
+  searchOpportunities(category, rootSel, querySel, traceSel, btn);
+}));
+
 // ───────── Tabs ─────────
 function switchTab(name) {
   $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
   $$(".panel-view").forEach(v => v.hidden = v.dataset.view !== name);
   if (name === "schedule") renderCalendar();
-  if (name === "research") loadResearch();
+  if (name === "research") loadOpportunities("research", "#researchList");
+  if (name === "jobs") loadOpportunities("industry", "#jobsList");
 }
 $("#tabs").addEventListener("click", (e) => {
   const tab = e.target.closest(".tab");
@@ -215,8 +224,22 @@ async function runAdvisor() {
   summary.hidden = false; summary.textContent = "Thinking…";
   try {
     const r = await api("/advisor", { method: "POST", body: { query } });
-    summary.innerHTML = `<strong>Copilot:</strong> ${r.summary}`;
+    const steps = (r.steps || []).map(s =>
+      `<li class="${s.ok ? "" : "step-fail"}"><b>${s.agent}</b> — ${s.summary}</li>`).join("");
+    const schedBtn = (r.schedule && r.schedule.length)
+      ? `<button id="useAdvisorSchedule" class="btn">Use this ${r.schedule.length}-class schedule →</button>` : "";
+    summary.innerHTML = `
+      <div><strong>Copilot:</strong> ${r.summary} <span class="muted small">(${r.mode})</span></div>
+      <details class="agent-trace" open><summary>How the agents worked (${(r.steps||[]).length} steps)</summary>
+        <ol class="trace-list">${steps}</ol></details>
+      ${schedBtn}`;
     renderCourses(r.courses, $("#courseList"));
+    const sb = $("#useAdvisorSchedule");
+    if (sb) sb.addEventListener("click", () => {
+      state.cart = r.schedule.map(c => ({ id: c.id, label: `${c.subject} ${c.number}`, title: c.title, section: c.section }));
+      saveCart(); renderCart(); switchTab("schedule");
+      toast(`Loaded the Copilot's ${r.schedule.length}-class schedule.`);
+    });
   } catch (err) {
     // Fallback: treat the query as a keyword search until the advisor agent is live.
     summary.innerHTML = `<strong>Copilot:</strong> showing keyword matches for “${query}”. <span class="muted">(advisor agent: ${err.message})</span>`;
@@ -322,21 +345,101 @@ async function loadSavedPlans() {
   } catch { root.innerHTML = ""; }
 }
 
-// ───────── Research (Phase 4) ─────────
-async function loadResearch() {
-  const root = $("#researchList");
-  if (root.dataset.loaded) return;
+// ───────── Opportunities (Research + Jobs) ─────────
+async function loadOpportunities(category, rootSel) {
+  const root = $(rootSel);
+  root.innerHTML = `<div class="empty">No saved ${category === "industry" ? "job" : "research"} results yet. Run an agent search above.</div>`;
   try {
-    const { targets } = await api("/targets");
-    if (!targets?.length) { root.innerHTML = `<div class="empty">No research opportunities yet.</div>`; return; }
-    root.innerHTML = targets.slice(0, 30).map(t => `<article class="course-card"><div>
-      <h3>${t.name || t.project || "Opportunity"}</h3>
-      <div class="course-meta"><span class="tag">${t.lab || "lab"}</span>${t.score ? `<span class="tag">score ${t.score}</span>` : ""}</div>
-      <p class="desc">${(t.fit || t.sentence || "").slice(0, 200)}</p></div>
-      <div class="score-badge ${scoreClass(Math.min(100, (t.score || 0) * 10))}">${t.score ?? "–"}</div></article>`).join("");
-    root.dataset.loaded = "1";
+    const { opportunities } = await api(`/opportunities?category=${category}`);
+    if (!opportunities?.length) {
+      return;
+    }
+    renderOpportunities(root, category, opportunities);
   } catch (err) {
-    root.innerHTML = `<div class="empty">Research outreach is being wired up. (${err.message})</div>`;
+    root.innerHTML = `<div class="empty">Couldn't load cached ${category} results. (${err.message})</div>`;
+  }
+}
+
+async function searchOpportunities(category, rootSel, querySel, traceSel, btn) {
+  const root = $(rootSel);
+  const trace = $(traceSel);
+  const query = $(querySel)?.value?.trim() || "";
+  btn.disabled = true;
+  btn.textContent = "Searching…";
+  root.innerHTML = `<div class="empty">Agents are searching live sources…</div>`;
+  trace.hidden = true;
+  try {
+    const result = await api("/opportunities/search", {
+      method: "POST",
+      body: { category, query, limit: 12 },
+    });
+    renderAgentTrace(trace, result);
+    if (!result.opportunities?.length) {
+      root.innerHTML = `<div class="empty">No matches found from the live sources. Try a broader query.</div>`;
+      return;
+    }
+    renderOpportunities(root, category, result.opportunities);
+  } catch (err) {
+    root.innerHTML = `<div class="empty">Opportunity agents failed. (${err.message})</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = category === "industry" ? "Find jobs" : "Find research";
+  }
+}
+
+function renderAgentTrace(root, result) {
+  if (!root) return;
+  const steps = result.steps || [];
+  root.hidden = false;
+  root.innerHTML = `
+    <div class="trace-head">
+      <strong>Agent run</strong>
+      <span>${result.mode || "live-agent"} · memory: ${result.memory || "disabled"}</span>
+    </div>
+    <div class="trace-steps">
+      ${steps.map(s => `<span class="${s.ok ? "ok" : "warn"}">${s.agent}: ${s.summary}</span>`).join("")}
+    </div>`;
+}
+
+function renderOpportunities(root, category, opportunities) {
+  root.innerHTML = opportunities.map(o => {
+      const reasons = (o.reasons || []).map(r => `<li>${r}</li>`).join("");
+      return `<article class="course-card">
+        <div>
+          <h3>${o.name || o.project || "Opportunity"}</h3>
+          <div class="course-meta">
+            <span class="tag">${o.org || "org"}</span>
+            <span class="tag ${category === "industry" ? "warn" : "good"}">${category}</span>
+            ${o.contact ? `<span class="tag">has contact</span>` : ""}
+          </div>
+          <ul class="reasons">${reasons}</ul>
+          ${o.project ? `<p class="desc">${o.project}</p>` : ""}
+        </div>
+        <div class="score-badge ${scoreClass(o.fitScore)}">${o.fitScore}</div>
+        <div class="card-actions">
+          ${o.source ? `<a class="btn" href="${o.source}" target="_blank" rel="noopener">Open source ↗</a>` : ""}
+          <button data-draft="${o.id}">✎ Draft outreach</button>
+        </div>
+      </article>`;
+  }).join("");
+  $$("[data-draft]", root).forEach(b => b.addEventListener("click", () => draftOutreach(b.dataset.draft, b)));
+}
+
+async function draftOutreach(targetId, btn) {
+  btn.disabled = true; btn.textContent = "Drafting…";
+  try {
+    const r = await api("/opportunities/draft", { method: "POST", body: { targetId } });
+    const draft = r.draft || r.email || "";
+    // Open Gmail compose with the draft prefilled (nothing sends automatically).
+    const subject = (draft.match(/^Subject:\s*(.+)$/m) || [])[1] || "Reaching out";
+    const body = draft.replace(/^Subject:\s*.+\n?/m, "").trim();
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(url, "_blank", "noopener");
+    toast("Draft ready — Gmail compose opened.");
+  } catch (err) {
+    toast(`Draft: ${err.message}`);
+  } finally {
+    btn.disabled = false; btn.textContent = "✎ Draft outreach";
   }
 }
 

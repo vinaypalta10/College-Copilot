@@ -18,6 +18,7 @@ export interface TargetRow {
   extracted_at: string | null;
   last_seen_at: string | null;
   auto: number;
+  category: string | null;   // 'research' | 'industry'
 }
 
 export interface DecisionRow {
@@ -45,6 +46,7 @@ export interface SourceRow {
   kind: string;
   name: string;
   enabled: number;
+  category: string | null;   // 'research' | 'industry'
 }
 
 export interface FollowUpRow {
@@ -334,10 +336,10 @@ export class Repo {
     this.db.prepare(`
       INSERT INTO targets (
         id, priority, path, name, lab, project, fit, contact, sentence,
-        source, notes, evidence, score, score_facets, extracted_at, last_seen_at, auto
+        source, notes, evidence, score, score_facets, extracted_at, last_seen_at, auto, category
       ) VALUES (
         @id, @priority, @path, @name, @lab, @project, @fit, @contact, @sentence,
-        @source, @notes, @evidence, @score, @score_facets, @extracted_at, @last_seen_at, @auto
+        @source, @notes, @evidence, @score, @score_facets, @extracted_at, @last_seen_at, @auto, @category
       )
       ON CONFLICT(id) DO UPDATE SET
         priority      = excluded.priority,
@@ -354,7 +356,8 @@ export class Repo {
         score         = MAX(excluded.score, targets.score),
         score_facets  = excluded.score_facets,
         last_seen_at  = excluded.last_seen_at,
-        auto          = excluded.auto
+        auto          = excluded.auto,
+        category      = excluded.category
     `).run(row);
   }
 
@@ -401,20 +404,31 @@ export class Repo {
     `).run(d);
   }
 
-  listSources(): SourceRow[] {
+  listSources(category?: string): SourceRow[] {
+    if (category) {
+      return this.db.prepare(`SELECT * FROM sources WHERE enabled = 1 AND category = ?`).all(category) as SourceRow[];
+    }
     return this.db.prepare(`SELECT * FROM sources WHERE enabled = 1`).all() as SourceRow[];
   }
 
   upsertSource(s: SourceRow): void {
     this.db.prepare(`
-      INSERT INTO sources (url, path, kind, name, enabled)
-      VALUES (@url, @path, @kind, @name, @enabled)
+      INSERT INTO sources (url, path, kind, name, enabled, category)
+      VALUES (@url, @path, @kind, @name, @enabled, @category)
       ON CONFLICT(url) DO UPDATE SET
         path = excluded.path,
         kind = excluded.kind,
         name = excluded.name,
-        enabled = excluded.enabled
+        enabled = excluded.enabled,
+        category = excluded.category
     `).run(s);
+  }
+
+  /** Opportunities (targets) filtered by category, highest score first. */
+  listOpportunities(category: string): TargetRow[] {
+    return this.db.prepare(
+      `SELECT * FROM targets WHERE COALESCE(category, 'research') = ? ORDER BY score DESC, priority ASC`,
+    ).all(category) as TargetRow[];
   }
 
   startScan(startedAt: string): number {

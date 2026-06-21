@@ -34,6 +34,7 @@
         <button class="tab active" data-tab="discover">Discover</button>
         <button class="tab" data-tab="schedule">Schedule</button>
         <button class="tab" data-tab="research">Research</button>
+        <button class="tab" data-tab="jobs">Jobs</button>
         <button class="tab" data-tab="profile">Profile</button>
       </nav>
       <div class="topbar-actions">
@@ -78,9 +79,28 @@
       <section class="panel-view" data-view="research" hidden>
         <div class="research-head">
           <h2>Research opportunities</h2>
-          <p class="muted">Find labs &amp; URAP projects, then draft a warm outreach email. Nothing sends automatically — the button opens Gmail compose.</p>
+          <p class="muted">Ask the opportunity agents to search live Berkeley lab and URAP sources, then rank results against your profile.</p>
+          <div class="opportunity-search">
+            <input id="researchQuery" type="search" placeholder="e.g. machine learning systems, NLP, computational biology">
+            <button class="btn primary" data-find-opps="research">Find research</button>
+          </div>
         </div>
+        <div id="researchTrace" class="agent-trace" hidden></div>
         <div id="researchList" class="course-list"></div>
+      </section>
+
+      <!-- Jobs / Industry -->
+      <section class="panel-view" data-view="jobs" hidden>
+        <div class="research-head">
+          <h2>Jobs &amp; internships</h2>
+          <p class="muted">Ask the opportunity agents to search live internship sources, then rank roles against your profile.</p>
+          <div class="opportunity-search">
+            <input id="jobsQuery" type="search" placeholder="e.g. AI internship, startup SWE, data engineering">
+            <button class="btn primary" data-find-opps="industry">Find jobs</button>
+          </div>
+        </div>
+        <div id="jobsTrace" class="agent-trace" hidden></div>
+        <div id="jobsList" class="course-list"></div>
       </section>
 
       <!-- Profile / onboarding -->

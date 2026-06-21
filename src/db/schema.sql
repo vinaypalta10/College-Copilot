@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS targets (
   score_facets  TEXT,
   extracted_at  TEXT,
   last_seen_at  TEXT,
-  auto          INTEGER DEFAULT 0
+  auto          INTEGER DEFAULT 0,
+  category      TEXT DEFAULT 'research'   -- 'research' | 'industry'
 );
 
 CREATE INDEX IF NOT EXISTS idx_targets_priority ON targets(priority);
@@ -57,7 +58,8 @@ CREATE TABLE IF NOT EXISTS sources (
   path     TEXT NOT NULL,
   kind     TEXT NOT NULL,
   name     TEXT NOT NULL,
-  enabled  INTEGER DEFAULT 1
+  enabled  INTEGER DEFAULT 1,
+  category TEXT DEFAULT 'research'   -- 'research' | 'industry'
 );
 
 CREATE TABLE IF NOT EXISTS email_ratings (

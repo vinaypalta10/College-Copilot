@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Repo } from "../db/repo.ts";
 import type { DB } from "../db/client.ts";
 import { requireAuth, type AuthedRequest } from "../auth/session.ts";
-import { advise } from "../agents/course-advisor.ts";
+import { advise } from "../agents/advising-orchestrator.ts";
 import { shapeCourse } from "./courses.ts";
 
 const body = z.object({ query: z.string().min(1).max(400), term: z.string().optional() });
@@ -23,9 +23,15 @@ export function advisorRouter(db: DB): Router {
       );
       res.json({
         summary: out.summary,
+        mode: out.mode,
         constraints: out.constraints,
+        steps: out.steps,
+        coverage: out.coverage,
+        uncovered: out.uncovered,
+        workload: out.workload,
         count: out.results.length,
         courses: out.results.map(({ cand, fit }) => shapeCourse(cand, fit)),
+        schedule: out.schedule.map(({ cand, fit }) => shapeCourse(cand, fit)),
       });
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });

@@ -8,9 +8,8 @@ finding **research opportunities** worth a warm outreach email.
 Students normally have many constraints but scattered information; College Copilot gathers it
 for them and ranks every class against their profile with a plain-language "why this matches".
 
-> Pivoted from an earlier internship-outreach tool — the scanner, LLM-provider abstraction,
-> SQLite repo, skill/agent registries, and review frontend were reused; course discovery,
-> scheduling, multi-user auth, and the Berkeley data layer are new.
+> Pivoted from an earlier internship-outreach tool; the current local data is cleaned down to
+> Berkeley course data plus curated research/industry opportunities for College Copilot.
 
 ## Project status (hackathon — ~20 hrs total)
 
@@ -22,8 +21,8 @@ for them and ranks every class against their profile with a plain-language "why 
 - **Explainable ranking** — every class scored 0-100 vs. your profile with reasons (requirement, RMP, workload, time).
 - **Advisor** — natural-language search ("CS, mornings, light workload, ≥3.5 prof") → re-ranked results.
 - **Scheduling** — shortlist → auto-built conflict-free timetable → weekly calendar → saved plans.
-- **Research tab** — browse opportunities + draft outreach (reuses legacy pipeline).
-- **Quality** — `tsc` clean, 31/31 unit tests, deterministic scorer + schedule builder.
+- **Research tab** — run opportunity agents that fetch live sources, rank results, and draft outreach.
+- **Quality** — deterministic scorer + schedule builder covered by unit tests.
 
 ### 🎯 Next 2 hours → demo-ready v1 (for the sponsor walkthrough)
 Goal: a smooth, bug-free **happy path** to show. See [ROADMAP.md](ROADMAP.md) for task split.
@@ -34,7 +33,7 @@ Goal: a smooth, bug-free **happy path** to show. See [ROADMAP.md](ROADMAP.md) fo
 5. **Polish empty/error states** and the calendar rendering.
 
 ### 🔭 Next 3 hours (after demo) → harden + sponsor hooks
-- Per-user research opportunities (real isolation) + lab/URAP scanner sources.
+- Per-user research opportunities (real isolation) + richer lab/URAP sources.
 - Schedule discussion/lab sub-sections, not just lectures.
 - Wire the first sponsor integrations from [SPONSORS.md](SPONSORS.md).
 - Deploy a public URL so judges can try it.
@@ -76,7 +75,7 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
 | `npm run dev` | Watch-mode server on `$PORT` (default 4174). |
 | `npm start` | Same as dev without watch. |
 | `npm run import:courses` | Import courses + sections + grades from Berkeleytime, then enrich instructors from RateMyProfessors. Flags: `--term fall-2026 --subjects COMPSCI,DATA,STAT,MATH --limit 60 --no-rmp`. Idempotent. |
-| `npm run migrate` | Import legacy outreach JSON (research opportunities) into SQLite. |
+| `npm run clean:legacy-data` | Remove cached opportunity rows while preserving courses, instructors, users, profiles, and plans. |
 | `npm test` | node:test suite (course scoring + schedule builder are pure & fully unit-tested). |
 
 ## Data sources (UC Berkeley)
@@ -95,22 +94,20 @@ src/
   server.ts            Express entry; mounts routes, session middleware
   auth/                Google OAuth flow + DB-backed cookie sessions
   api/                 Route handlers (zod-validated): auth, profile, courses,
-                       advisor, plans, schedule (+ legacy outreach routes)
+                       advisor, plans, schedule, opportunities
   ingest/              berkeleytime.ts (catalog) + ratemyprofessors.ts (ratings)
   scorer/              courseScore.ts (fit, explainable) + candidates.ts (ranking)
-                       + scheduleBuilder.ts (conflict-free assembly) + keyword/claude
-  agents/              course-advisor (NL → ranked courses) + outreach orchestrator
-  skills/              professor-rating + draft-email/critique-draft (outreach) + stubs
-  providers/           Claude API (Anthropic) abstraction for advisor + outreach
+                       + scheduleBuilder.ts (conflict-free assembly) + opportunityScore.ts
+  agents/              advising orchestrator + course/schedule/professor specialists
+  skills/              professor-rating + registry
+  providers/           Claude API (Anthropic) abstraction for advisor
   db/                  SQLite schema + typed repo (better-sqlite3) + migrations
-  profile/             legacy resume facets (outreach only)
-  scanner/             fetcher + extractor (research opportunity pages)
-  scripts/             import-courses, migrate, scan-once
+  scripts/             import-courses, import-opportunities, clean-legacy-data
 public/
   index.html  styles.css  js/app.js   (vanilla ES-module SPA: login, profile, discover,
                                         schedule, research)
 tests/                 node:test suites
-data/outreach.db       SQLite store (gitignored)
+data/outreach.db       SQLite store (gitignored; override with COLLEGE_COPILOT_DB_PATH)
 ```
 
 ## Environment
@@ -120,7 +117,7 @@ Full list with comments in `.env.example`. Highlights:
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAUTH_REDIRECT_URL` — Google Sign-In (falls back to dev-login).
 - `OAUTH_HOSTED_DOMAIN` — optional, restrict sign-in to one email domain.
 - `COURSE_TERM` — default term (e.g. `fall-2026`). *Named `COURSE_TERM`, not `TERM`, to avoid the shell's `$TERM`.*
-- `ANTHROPIC_API_KEY` — Claude API; powers the advisor's NL parsing and outreach drafting (heuristic/template fallbacks when absent).
+- `ANTHROPIC_API_KEY` — Claude API; powers the advisor's NL parsing (heuristic fallback when absent).
 
 ## Notable behaviors
 
@@ -135,7 +132,7 @@ Full list with comments in `.env.example`. Highlights:
 
 - Imports the lecture (primary) section per course; discussion/lab sub-sections aren't yet
   scheduled individually.
-- Research-opportunity data is currently shared (seeded from the legacy outreach set) rather than
+- Research-opportunity data is currently shared (seeded from curated local JSON) rather than
   per-user; full per-user isolation of the outreach pipeline is a follow-up.
 - Requirement matching is text-based against the student's stated remaining requirements; it does
   not yet parse official degree audits.

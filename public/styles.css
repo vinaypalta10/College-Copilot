@@ -53,6 +53,19 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 .filters input[type=search] { flex: 1; min-width: 200px; }
 .check { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13.5px; }
 .advisor-summary { background: color-mix(in srgb, var(--brand) 8%, var(--card)); border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
+.agent-trace { margin: 10px 0 4px; }
+.agent-trace > summary { cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 600; }
+.trace-list { margin: 8px 0 0; padding-left: 20px; font-size: 13px; }
+.trace-list li { margin: 3px 0; }
+.trace-list li b { color: var(--accent); }
+.trace-list li.step-fail b { color: var(--bad); }
+#useAdvisorSchedule { margin-top: 8px; }
+.trace-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; }
+.trace-head strong { color: var(--ink); }
+.trace-steps { display: grid; gap: 6px; margin-top: 8px; }
+.trace-steps span { font-size: 12.5px; color: var(--muted); background: var(--chip); border-radius: 8px; padding: 6px 8px; }
+.trace-steps span.ok { border-left: 3px solid var(--good); }
+.trace-steps span.warn { border-left: 3px solid var(--warn); }
 
 /* Course cards */
 .course-list { display: grid; gap: 12px; }
@@ -75,6 +88,8 @@ main { max-width: 1080px; margin: 0 auto; padding: 22px; }
 
 /* Profile */
 .profile-card, .schedule-head, .research-head { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; box-shadow: var(--shadow); }
+.opportunity-search { display: flex; gap: 10px; margin-top: 14px; }
+.opportunity-search input { flex: 1; min-width: 180px; }
 #profileForm { display: grid; gap: 14px; margin-top: 16px; }
 #profileForm label { display: grid; gap: 5px; font-size: 13px; color: var(--muted); }
 #profileForm input, #profileForm select { font-size: 14.5px; color: var(--ink); }

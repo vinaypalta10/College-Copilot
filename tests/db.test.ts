@@ -48,6 +48,7 @@ function sampleTarget(overrides: Partial<TargetRow> = {}): TargetRow {
     extracted_at: new Date().toISOString(),
     last_seen_at: null,
     auto: 0,
+    category: "research",
     ...overrides,
   };
 }

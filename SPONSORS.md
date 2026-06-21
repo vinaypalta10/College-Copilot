@@ -19,14 +19,7 @@ Status: ☐ todo · ◐ in progress · ✅ done & proof captured
 ## Per-sponsor playbook
 
 ### 1. Anthropic — **lock this in, ~free** ✅
-We're already built with Claude Code and the Claude API powers the advisor's NL parsing and the
-outreach writer/critic (`src/providers/anthropic.ts`, `src/agents/course-advisor.ts`).
-- **The story** (their criteria reward aspiration in education/economic opportunity): "Berkeley
-  students waste hours and pick badly because course info is scattered — College Copilot is an
-  agent that does the cross-referencing and gives every student an advisor."
-- **To do:** set `ANTHROPIC_API_KEY`; keep the Claude Code session/transcript; write the Devpost
-  narrative around impact. Take a bigger swing: let Claude *explain trade-offs* between two
-  schedules and *justify* each recommendation (deepens "meaningful use").
+Need to come up with a better story
 
 ### 2. Fetch.ai / ASI:One — **highest strategic fit, biggest effort** ⭐
 Their challenge is literally "an agent that understands intent and takes action, no custom
@@ -52,19 +45,10 @@ Natural fits (pick one or two and make them visible):
   semantic "find classes like…" search. This is the strongest "best use" angle and demos well.
 - Stretch: pub/sub for live seat-availability updates.
 
+where can we use redis, is for the profile page. I am thinking about courses completed, instead of searching for the website everytime, I think we can develop an algorithm that will make this step easier
+
 ### 4. The Token Company — **opportunistic**
-We send course context to Claude in the advisor. A compression module that shrinks that context
-(e.g. summarize/dedupe catalog entries, drop low-signal fields) while keeping ranking quality
-would qualify. Less natural than the others — pursue only if a teammate is excited and the other
-three are on track. Capture before/after token counts as proof.
-
----
-
-## Recommended priority (20-hr budget)
-1. **Anthropic** — already done; just document. *(do now)*
-2. **Fetch.ai/ASI:One** — best fit + high value; **assign a Python-comfortable teammate now** since it's the longest pole.
-3. **Redis** — cache + RediSearch vector search; medium effort, visible.
-4. **The Token Company** — only if 1–3 are on track.
+When we are integrating redis, we try to develop a system that fits this 
 
 ## Integration principles
 - Prefer integrations that **show in the demo** — judges reward visible use.

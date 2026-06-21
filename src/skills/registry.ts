@@ -67,32 +67,5 @@ export function listSkills(): { name: string; description: string; status: Skill
 export async function runSkill<I = unknown, O = unknown>(name: string, input: I, ctx: SkillContext): Promise<O> {
   const skill = registry.get(name) as Skill<I, O> | undefined;
   if (!skill) throw new Error(`Unknown skill: ${name}`);
-  const started = performance.now();
-  try {
-    const output = await skill.run(input, ctx);
-    const duration = Math.round(performance.now() - started);
-    ctx.repo.logSkillRun({
-      skill: skill.name,
-      target_id: ctx.targetId ?? null,
-      status: "ok",
-      input,
-      output,
-      error: null,
-      duration_ms: duration,
-    });
-    return output;
-  } catch (error) {
-    const duration = Math.round(performance.now() - started);
-    const isStub = error instanceof SkillNotImplementedError;
-    ctx.repo.logSkillRun({
-      skill: skill.name,
-      target_id: ctx.targetId ?? null,
-      status: isStub ? "stub" : "error",
-      input,
-      output: null,
-      error: (error as Error).message,
-      duration_ms: duration,
-    });
-    throw error;
-  }
+  return skill.run(input, ctx);
 }
