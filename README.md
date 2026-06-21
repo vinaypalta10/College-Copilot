@@ -21,7 +21,7 @@ for them and ranks every class against their profile with a plain-language "why 
 - **Explainable ranking** — every class scored 0-100 vs. your profile with reasons (requirement, RMP, workload, time).
 - **Advisor** — natural-language search ("CS, mornings, light workload, ≥3.5 prof") → re-ranked results.
 - **Scheduling** — shortlist → auto-built conflict-free timetable → weekly calendar → saved plans.
-- **Research tab** — run opportunity agents that fetch live sources, rank results, and draft outreach.
+- **Research tab** — run opportunity agents that fetch live sources and draft outreach.
 - **Quality** — deterministic scorer + schedule builder covered by unit tests.
 - **Redis catalog cache** — the whole Berkeley catalog (40 subjects, ~1,400 courses) is cached
   in Redis as a read-through snapshot so the advisor/Discover hot path doesn't rebuild its
@@ -137,7 +137,7 @@ src/
                        advisor, plans, schedule, opportunities
   ingest/              berkeleytime.ts (catalog) + ratemyprofessors.ts (ratings)
   scorer/              courseScore.ts (fit, explainable) + candidates.ts (ranking)
-                       + scheduleBuilder.ts (conflict-free assembly) + opportunityScore.ts
+                       + scheduleBuilder.ts (conflict-free assembly)
   agents/              advising orchestrator + course/schedule/professor specialists
   skills/              professor-rating + registry
   providers/           Claude API (Anthropic) abstraction for advisor

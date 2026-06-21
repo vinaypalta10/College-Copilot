@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { RankedCourse } from "../src/scorer/candidates.ts";
-import { checkRequirements } from "../src/agents/specialists/requirement-checker.ts";
-import { estimateScheduleWorkload } from "../src/agents/specialists/workload-estimator.ts";
-import { buildFromCandidates } from "../src/agents/specialists/schedule-builder.ts";
-import { heuristicParse, mergePrefs } from "../src/agents/parseQuery.ts";
+import { checkRequirements } from "../src/agents/course-planner/specialists/requirement-checker.ts";
+import { estimateScheduleWorkload } from "../src/agents/course-planner/specialists/workload-estimator.ts";
+import { buildFromCandidates } from "../src/agents/course-planner/specialists/schedule-builder.ts";
+import { heuristicParse, mergePrefs } from "../src/agents/course-planner/parseQuery.ts";
 import { scoreCourse } from "../src/scorer/courseScore.ts";
 
 function rc(subject: string, number: string, opts: { units?: number; avgGpa?: number; days?: string; start?: number; end?: number; title?: string } = {}): RankedCourse {

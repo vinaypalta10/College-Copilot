@@ -3,10 +3,10 @@
  * top candidates using the deterministic buildSchedule tool.
  */
 
-import { registerAgent } from "../registry.ts";
-import type { Agent, AgentContext } from "../types.ts";
-import { buildSchedule, parseDayCodes, type SchedulableSection } from "../../scorer/scheduleBuilder.ts";
-import type { RankedCourse } from "../../scorer/candidates.ts";
+import { registerAgent } from "../../registry.ts";
+import type { Agent, AgentContext } from "../../types.ts";
+import { buildSchedule, parseDayCodes, type SchedulableSection } from "../../../scorer/scheduleBuilder.ts";
+import type { RankedCourse } from "../../../scorer/candidates.ts";
 
 export interface SchedBuildInput { candidates: RankedCourse[]; maxUnits?: number }
 export interface SchedBuildOutput {

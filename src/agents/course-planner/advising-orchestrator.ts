@@ -11,16 +11,18 @@
  * computing; the agents reason, enrich, and explain.
  */
 
-import { registerAgent } from "./registry.ts";
-import type { Agent, AgentContext } from "./types.ts";
+import { registerAgent } from "../registry.ts";
+import type { Agent, AgentContext } from "../types.ts";
 import { parseQuery, mergePrefs, type QueryConstraints } from "./parseQuery.ts";
-import { prefsFromProfile, type RankedCourse } from "../scorer/candidates.ts";
+import { prefsFromProfile, type RankedCourse } from "../../scorer/candidates.ts";
 import { findCourses } from "./specialists/course-finder.ts";
 import { evaluateProfessors } from "./specialists/professor-evaluator.ts";
 import { checkRequirements, type ReqCheckOutput } from "./specialists/requirement-checker.ts";
 import { buildFromCandidates, type SchedBuildOutput } from "./specialists/schedule-builder.ts";
 import { estimateScheduleWorkload, type WorkloadOutput } from "./specialists/workload-estimator.ts";
-import { log } from "../lib/log.ts";
+import { compressContext, type CompressionStats } from "./specialists/context-compressor.ts";
+import { explainPlan } from "./specialists/plan-explainer.ts";
+import { log } from "../../lib/log.ts";
 
 const DEFAULT_TERM = process.env.COURSE_TERM || "fall-2026";
 
@@ -35,6 +37,8 @@ export interface AdviseOutput {
   coverage: ReqCheckOutput["coverage"];
   uncovered: string[];
   workload: WorkloadOutput | null;
+  /** Token Company story: before/after context size around the LLM call. */
+  compression: CompressionStats | null;
   steps: AdviceStep[];
 }
 
@@ -56,7 +60,7 @@ export async function advise(input: AdviseInput, ctx: AgentContext): Promise<Adv
     record("course-finder", true, found.summary);
   } catch (e) {
     record("course-finder", false, `failed: ${(e as Error).message}`);
-    return { summary: "No courses available — try importing more subjects.", mode, constraints, results: [], schedule: [], coverage: [], uncovered: [], workload: null, steps };
+    return { summary: "No courses available — try importing more subjects.", mode, constraints, results: [], schedule: [], coverage: [], uncovered: [], workload: null, compression: null, steps };
   }
 
   // 3. professor-evaluator (lazy RMP enrichment + re-score)
@@ -101,9 +105,26 @@ export async function advise(input: AdviseInput, ctx: AgentContext): Promise<Adv
     }
   }
 
-  const summary = synthesize(candidates.length, coverage, sched, workload);
-  log.info("advising-orchestrator complete", { steps: steps.length, candidates: candidates.length });
-  return { summary, mode, constraints, results: candidates, schedule, coverage, uncovered, workload, steps };
+  // 7. context-compressor — distill the full planning state to the minimum the
+  //    LLM needs, and measure the token savings (Token Company story).
+  const compressed = compressContext({ candidates, schedule, coverage, uncovered, workload, constraints });
+  record("context-compressor", true, compressed.summary);
+
+  // 8. plan-explainer — the single LLM call, fed ONLY the compressed context.
+  let summary: string;
+  let explainMode: "llm" | "heuristic" = mode;
+  try {
+    const explained = await explainPlan({ query: input.query, context: compressed.context });
+    summary = explained.explanation;
+    explainMode = explained.mode;
+    record("plan-explainer", true, `Explained the plan from a ${compressed.stats.afterTokens}-token context (${explained.mode}).`);
+  } catch (e) {
+    summary = synthesize(candidates.length, coverage, sched, workload);
+    record("plan-explainer", false, `fell back to deterministic synthesis: ${(e as Error).message}`);
+  }
+
+  log.info("advising-orchestrator complete", { steps: steps.length, candidates: candidates.length, savedPct: compressed.stats.savedPct });
+  return { summary, mode: explainMode, constraints, results: candidates, schedule, coverage, uncovered, workload, compression: compressed.stats, steps };
 }
 
 function synthesize(count: number, coverage: ReqCheckOutput["coverage"], sched: SchedBuildOutput | null, workload: WorkloadOutput | null): string {
@@ -119,7 +140,7 @@ export const advisingOrchestrator: Agent<AdviseInput, AdviseOutput> = {
   description: "Plans and runs the multi-agent course-advising pipeline, returning ranked courses, a conflict-free schedule, requirement coverage, and a step-by-step agent trace.",
   status: "active",
   skills: ["course-search", "professor-rating"],
-  delegatesTo: ["course-finder", "professor-evaluator", "requirement-checker", "schedule-builder", "workload-estimator"],
+  delegatesTo: ["course-finder", "professor-evaluator", "requirement-checker", "schedule-builder", "workload-estimator", "context-compressor", "plan-explainer"],
   run: advise,
 };
 

@@ -7,12 +7,12 @@
  * initial deterministic pass (which can only use already-cached ratings).
  */
 
-import { registerAgent } from "../registry.ts";
-import type { Agent, AgentContext } from "../types.ts";
-import { enrichInstructor } from "../../skills/professor-rating.ts";
-import { instructorKey } from "../../lib/instructors.ts";
-import { scoreCourse, type StudentPrefs } from "../../scorer/courseScore.ts";
-import type { RankedCourse } from "../../scorer/candidates.ts";
+import { registerAgent } from "../../registry.ts";
+import type { Agent, AgentContext } from "../../types.ts";
+import { enrichInstructor } from "../../../skills/professor-rating.ts";
+import { instructorKey } from "../../../lib/instructors.ts";
+import { scoreCourse, type StudentPrefs } from "../../../scorer/courseScore.ts";
+import type { RankedCourse } from "../../../scorer/candidates.ts";
 
 export interface ProfEvalInput { candidates: RankedCourse[]; prefs: StudentPrefs; enrichTop?: number }
 export interface ProfEvalOutput { candidates: RankedCourse[]; enriched: number; summary: string }

@@ -6,10 +6,10 @@
  * over-loaded semester the per-course view can't see.
  */
 
-import { registerAgent } from "../registry.ts";
-import type { Agent } from "../types.ts";
-import { estimateWorkload } from "../../scorer/courseScore.ts";
-import type { RankedCourse } from "../../scorer/candidates.ts";
+import { registerAgent } from "../../registry.ts";
+import type { Agent } from "../../types.ts";
+import { estimateWorkload } from "../../../scorer/courseScore.ts";
+import type { RankedCourse } from "../../../scorer/candidates.ts";
 
 export interface WorkloadInput { schedule: RankedCourse[] }
 export interface WorkloadOutput {

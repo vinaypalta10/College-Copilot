@@ -541,6 +541,7 @@ function renderOpportunities(root, category, opportunities) {
           </div>
           <ul class="reasons">${reasons}</ul>
           ${o.project ? `<p class="desc">${o.project}</p>` : ""}
+          ${o.evidence ? `<p class="desc">${o.evidence.slice(0, 180)}${o.evidence.length > 180 ? "…" : ""}</p>` : ""}
         </div>
         <div class="score-badge ${scoreClass(o.fitScore)}">
           <small>Match score</small>

@@ -6,9 +6,9 @@
  * remaining requirements can these courses cover, and which are still open?".
  */
 
-import { registerAgent } from "../registry.ts";
-import type { Agent, AgentContext } from "../types.ts";
-import type { RankedCourse } from "../../scorer/candidates.ts";
+import { registerAgent } from "../../registry.ts";
+import type { Agent, AgentContext } from "../../types.ts";
+import type { RankedCourse } from "../../../scorer/candidates.ts";
 
 export interface ReqCheckInput { candidates: RankedCourse[]; requirementsRemaining: string[] }
 export interface ReqCheckOutput {

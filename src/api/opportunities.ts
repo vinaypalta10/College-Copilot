@@ -4,7 +4,8 @@ import type { DB } from "../db/client.ts";
 import { requireAuth, type AuthedRequest } from "../auth/session.ts";
 import { prefsFromProfile } from "../scorer/candidates.ts";
 import { scoreOpportunity } from "../scorer/opportunityScore.ts";
-import { discoverOpportunities } from "../agents/opportunity-orchestrator.ts";
+import { discoverResearchOpportunities } from "../agents/research-opportunities/orchestrator.ts";
+import { discoverIndustryJobs } from "../agents/industry-jobs/orchestrator.ts";
 
 const CATEGORIES = new Set(["research", "industry"]);
 
@@ -37,13 +38,13 @@ export function opportunitiesRouter(db: DB): Router {
     const limit = Math.min(Number(req.query.limit ?? 40), 100);
     const prefs = prefsFromProfile(repo.getProfile(req.user!.id));
 
-    const scored = repo.listOpportunities(category)
+    const opportunities = repo.listOpportunities(category)
       .map(t => ({ t, fit: scoreOpportunity(t, prefs) }))
       .sort((a, b) => b.fit.score - a.fit.score)
       .slice(0, limit)
       .map(({ t, fit }) => shape(t, fit));
 
-    res.json({ category, count: scored.length, opportunities: scored });
+    res.json({ category, count: opportunities.length, opportunities });
   });
 
   router.post("/search", async (req: AuthedRequest, res, next) => {
@@ -52,12 +53,8 @@ export function opportunitiesRouter(db: DB): Router {
       if (!CATEGORIES.has(category)) { res.status(400).json({ error: "category must be research|industry" }); return; }
       const query = typeof req.body?.query === "string" ? req.body.query : "";
       const limit = Math.min(Number(req.body?.limit ?? 12), 30);
-      const result = await discoverOpportunities({
-        userId: req.user!.id,
-        category: category as "research" | "industry",
-        query,
-        limit,
-      }, { repo });
+      const search = category === "research" ? discoverResearchOpportunities : discoverIndustryJobs;
+      const result = await search({ userId: req.user!.id, query, limit }, { repo });
       res.json({ category, ...result, count: result.opportunities.length });
     } catch (e) {
       next(e);

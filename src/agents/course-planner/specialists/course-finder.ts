@@ -5,10 +5,10 @@
  * invents course data, it filters and orders the real catalog.
  */
 
-import { registerAgent } from "../registry.ts";
-import type { Agent, AgentContext } from "../types.ts";
-import { rankCoursesCached, type RankedCourse } from "../../scorer/candidates.ts";
-import type { StudentPrefs } from "../../scorer/courseScore.ts";
+import { registerAgent } from "../../registry.ts";
+import type { Agent, AgentContext } from "../../types.ts";
+import { rankCoursesCached, type RankedCourse } from "../../../scorer/candidates.ts";
+import type { StudentPrefs } from "../../../scorer/courseScore.ts";
 
 export interface CourseFinderInput {
   prefs: StudentPrefs;

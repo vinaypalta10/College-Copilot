@@ -6,9 +6,9 @@
  * onto the student's saved preferences.
  */
 
-import { getProvider } from "../providers/index.ts";
-import type { StudentPrefs } from "../scorer/courseScore.ts";
-import { log } from "../lib/log.ts";
+import { getProvider } from "../../providers/index.ts";
+import type { StudentPrefs } from "../../scorer/courseScore.ts";
+import { log } from "../../lib/log.ts";
 
 export interface QueryConstraints {
   subject?: string | null;

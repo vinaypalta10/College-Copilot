@@ -1,5 +1,5 @@
 /**
- * Agent registry entry point — the multi-agent course-advising system.
+ * Agent registry entry point.
  *
  *   advising-orchestrator (planner)
  *     ├─ course-finder        search + rank the live catalog
@@ -12,13 +12,9 @@
  * work via deterministic tools; the orchestrator plans, delegates, and explains.
  */
 
-import "./specialists/course-finder.ts";
-import "./specialists/professor-evaluator.ts";
-import "./specialists/requirement-checker.ts";
-import "./specialists/schedule-builder.ts";
-import "./specialists/workload-estimator.ts";
-import "./advising-orchestrator.ts";
-import "./opportunity-orchestrator.ts";
+import "./course-planner/index.ts";
+import "./research-opportunities/index.ts";
+import "./industry-jobs/index.ts";
 
 export { listAgents, getAgent, runAgent, registerAgent } from "./registry.ts";
 export type { Agent, AgentContext, AgentStatus } from "./types.ts";
