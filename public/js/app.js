@@ -4,6 +4,15 @@ import { BERKELEY_COLLEGES } from "./berkeley-majors.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, ch => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
+}[ch]));
+function safeExternalUrl(value) {
+  try {
+    const url = new URL(String(value));
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+  } catch { return ""; }
+}
 
 async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, {
@@ -147,7 +156,7 @@ function populateCollegeSelect(selected = "") {
   const select = $("#profileForm").college;
   select.innerHTML = '<option value="">Choose your college</option>' +
     BERKELEY_COLLEGES.map(college =>
-      `<option value="${college.name}">${college.name}</option>`
+      `<option value="${escapeHtml(college.name)}">${escapeHtml(college.name)}</option>`
     ).join("");
   select.value = selected;
 }
@@ -164,10 +173,10 @@ function populateMajorSelect(collegeName, selected = "") {
 
   const options = college.groups
     ? college.groups.map(group => `
-        <optgroup label="${group.name}">
-          ${group.majors.map(major => `<option value="${major}">${major}</option>`).join("")}
+        <optgroup label="${escapeHtml(group.name)}">
+          ${group.majors.map(major => `<option value="${escapeHtml(major)}">${escapeHtml(major)}</option>`).join("")}
         </optgroup>`).join("")
-    : college.majors.map(major => `<option value="${major}">${major}</option>`).join("");
+    : college.majors.map(major => `<option value="${escapeHtml(major)}">${escapeHtml(major)}</option>`).join("");
 
   select.innerHTML = `<option value="">Choose your major</option>${options}`;
   select.value = selected;
@@ -222,7 +231,7 @@ async function loadSubjects() {
   const { subjects } = await api("/courses/subjects");
   const sel = $("#subjectFilter");
   sel.innerHTML = '<option value="">All subjects</option>' +
-    subjects.map(s => `<option value="${s}">${s}</option>`).join("");
+    subjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
 }
 
 async function refreshCourses({ append = false } = {}) {
@@ -256,27 +265,27 @@ function courseCard(c, { research = false } = {}) {
   const inCart = state.cart.some(x => x.id === c.id);
   const rmp = c.instructor?.rmpRating;
   const tags = [
-    `<span class="tag">${c.units ?? "?"} units</span>`,
-    c.instructor ? `<span class="tag">${c.instructor.name}</span>` : "",
+    `<span class="tag">${escapeHtml(c.units ?? "?")} units</span>`,
+    c.instructor ? `<span class="tag">${escapeHtml(c.instructor.name)}</span>` : "",
     rmp != null ? `<span class="tag ${rmp >= 4 ? "good" : rmp < 3 ? "bad" : ""}">RMP ${rmp.toFixed(1)}</span>` : "",
     c.avgGpa != null ? `<span class="tag">avg GPA ${c.avgGpa.toFixed(2)}</span>` : "",
-    `<span class="tag ${c.fit.workload.estimate === "heavy" ? "warn" : c.fit.workload.estimate === "light" ? "good" : ""}">${c.fit.workload.estimate} load</span>`,
-    `<span class="tag">${time}</span>`,
+    `<span class="tag ${c.fit.workload.estimate === "heavy" ? "warn" : c.fit.workload.estimate === "light" ? "good" : ""}">${escapeHtml(c.fit.workload.estimate)} load</span>`,
+    `<span class="tag">${escapeHtml(time)}</span>`,
     c.fit.flags.requirementMatch ? `<span class="tag good">requirement ✓</span>` : "",
     c.fit.flags.timeConflict ? `<span class="tag bad">time clash</span>` : "",
   ].filter(Boolean).join("");
-  const reasons = c.fit.reasons.map(r => `<li>${r}</li>`).join("");
+  const reasons = c.fit.reasons.map(r => `<li>${escapeHtml(r)}</li>`).join("");
   const actions = research ? "" : `
     <div class="card-actions">
-      <button data-add="${c.id}">${inCart ? "✓ In schedule" : "+ Add to schedule"}</button>
+      <button data-add="${escapeHtml(c.id)}">${inCart ? "✓ In schedule" : "+ Add to schedule"}</button>
       <a class="course-catalog-link" href="${berkeleyCourseUrl(c)}" target="_blank" rel="noopener noreferrer">View Fall 2026 classes ↗</a>
     </div>`;
   return `<article class="course-card">
     <div>
-      <h3><span class="course-code">${c.subject} ${c.number}</span> — ${c.title}</h3>
+      <h3><span class="course-code">${escapeHtml(c.subject)} ${escapeHtml(c.number)}</span> — ${escapeHtml(c.title)}</h3>
       <div class="course-meta">${tags}</div>
       <ul class="reasons">${reasons}</ul>
-      ${c.description ? `<p class="desc">${c.description.slice(0, 180)}${c.description.length > 180 ? "…" : ""}</p>` : ""}
+      ${c.description ? `<p class="desc">${escapeHtml(c.description.slice(0, 180))}${c.description.length > 180 ? "…" : ""}</p>` : ""}
     </div>
     <div class="score-badge ${scoreClass(c.fit.score)}">
       <small>Match score</small>
@@ -304,24 +313,28 @@ async function runAdvisor() {
   try {
     const r = await api("/advisor", { method: "POST", body: { query } });
     const steps = (r.steps || []).map(s =>
-      `<li class="${s.ok ? "" : "step-fail"}"><b>${s.agent}</b> — ${s.summary}</li>`).join("");
-    const schedBtn = (r.schedule && r.schedule.length)
-      ? `<button id="useAdvisorSchedule" class="btn">Use this ${r.schedule.length}-class schedule →</button>` : "";
+      `<li class="${s.ok ? "" : "step-fail"}"><b>${escapeHtml(s.agent)}</b> — ${escapeHtml(s.summary)}</li>`).join("");
+    const coverage = (r.coverage || []).length
+      ? `<div class="advisor-insight"><strong>Requirement coverage:</strong> ${r.coverage.map(item =>
+          `${escapeHtml(item.requirement)} (${item.courses.map(escapeHtml).join(", ")})`).join(" · ")}</div>` : "";
+    const uncovered = (r.uncovered || []).length
+      ? `<div class="advisor-insight warn"><strong>Still open:</strong> ${r.uncovered.map(escapeHtml).join(", ")}</div>` : "";
+    const compression = r.compression
+      ? `<div class="advisor-insight muted"><strong>Context:</strong> ${r.compression.afterTokens} tokens after compression (${r.compression.savedPct}% smaller than raw catalog context).</div>` : "";
+    const followUp = r.followUp
+      ? `<div class="advisor-follow-up"><strong>One question:</strong> ${escapeHtml(r.followUp)}</div>` : "";
+    const policy = (r.policy?.warnings || []).length
+      ? `<div class="advisor-insight muted"><strong>Policy notes:</strong> ${r.policy.warnings.map(escapeHtml).join(" ")}</div>` : "";
     summary.innerHTML = `
-      <div><strong>Copilot:</strong> ${r.summary} <span class="muted small">(${r.mode})</span></div>
+      <div><strong>Copilot:</strong> ${escapeHtml(r.summary)} <span class="muted small">(${escapeHtml(r.mode)})</span></div>
+      ${followUp}${policy}${coverage}${uncovered}${compression}
       <details class="agent-trace" open><summary>How the agents worked (${(r.steps||[]).length} steps)</summary>
         <ol class="trace-list">${steps}</ol></details>
-      ${schedBtn}`;
-    renderCourses(r.courses, $("#courseList"));
-    const sb = $("#useAdvisorSchedule");
-    if (sb) sb.addEventListener("click", () => {
-      state.cart = r.schedule.map(c => ({ id: c.id, label: `${c.subject} ${c.number}`, title: c.title, section: c.section }));
-      saveCart(); renderCart(); switchTab("schedule");
-      toast(`Loaded the Copilot's ${r.schedule.length}-class schedule.`);
-    });
+      `;
+    if (r.intent === "course_search") renderCourses(r.courses, $("#courseList"));
   } catch (err) {
     // Fallback: treat the query as a keyword search until the advisor agent is live.
-    summary.innerHTML = `<strong>Copilot:</strong> showing keyword matches for “${query}”. <span class="muted">(advisor agent: ${err.message})</span>`;
+    summary.innerHTML = `<strong>Copilot:</strong> showing keyword matches for “${escapeHtml(query)}”. <span class="muted">(advisor agent: ${escapeHtml(err.message)})</span>`;
     $("#searchInput").value = query;
     refreshCourses();
   }
@@ -343,7 +356,7 @@ function renderCart() {
   const bar = $("#cartBar");
   if (!bar) return;
   bar.innerHTML = state.cart.length
-    ? state.cart.map(x => `<span class="cart-item">${x.label}<button data-rm="${x.id}">✕</button></span>`).join("")
+    ? state.cart.map(x => `<span class="cart-item">${escapeHtml(x.label)}<button data-rm="${escapeHtml(x.id)}">✕</button></span>`).join("")
     : `<span class="muted small">No classes added yet — add some from Discover.</span>`;
   $$("[data-rm]", bar).forEach(b => b.addEventListener("click", () => removeFromCart(b.dataset.rm)));
 }
@@ -393,23 +406,12 @@ function calendarMarkup(items) {
     for (const e of events.filter(ev => ev.day === code)) {
       const top = ((e.start - CAL_START) / span) * 100;
       const height = ((e.end - e.start) / span) * 100;
-      html += `<div class="cal-event ${e.conflict ? "conflict" : ""}" style="top:${top}%;height:${height}%">${e.label}<br>${minToHHMM(e.start)}</div>`;
+      html += `<div class="cal-event ${e.conflict ? "conflict" : ""}" style="top:${top}%;height:${height}%">${escapeHtml(e.label)}<br>${minToHHMM(e.start)}</div>`;
     }
     html += `</div>`;
   }
   return html;
 }
-
-$("#buildScheduleBtn").addEventListener("click", async () => {
-  try {
-    const subject = $("#subjectFilter").value || undefined;
-    const r = await api("/schedule/suggest", { method: "POST", body: { subject, openOnly: true } });
-    if (!r.courses.length) return toast("No conflict-free schedule found — try importing more subjects.");
-    state.cart = r.courses.map(c => ({ id: c.id, label: `${c.subject} ${c.number}`, title: c.title, section: c.section }));
-    saveCart(); renderCart(); renderCalendar();
-    toast(`Auto-built ${r.courses.length} classes (${r.totalUnits} units), conflict-free.`);
-  } catch (err) { toast(`Auto-build: ${err.message}`); }
-});
 
 $("#clearScheduleBtn").addEventListener("click", () => {
   if (!state.cart.length) return toast("The schedule is already empty.");
@@ -441,8 +443,8 @@ async function loadSavedPlans() {
     root.innerHTML = plans.length
       ? `<div class="saved-plans-head"><h3>Saved schedules</h3><button id="comparePlansBtn" class="btn">Compare selected</button></div>` +
         plans.map(p => `<div class="saved-plan">
-          <label><input type="checkbox" data-compare="${p.id}"> ${p.name} · ${p.courses.length} classes</label>
-          <div><button data-load="${p.id}">Load</button><button data-del="${p.id}">Delete</button></div>
+          <label><input type="checkbox" data-compare="${escapeHtml(p.id)}"> ${escapeHtml(p.name)} · ${p.courses.length} classes</label>
+          <div><button data-load="${escapeHtml(p.id)}">Load</button><button data-del="${escapeHtml(p.id)}">Delete</button></div>
         </div>`).join("")
       : "";
     $$("[data-load]", root).forEach(b => b.addEventListener("click", () => {
@@ -466,9 +468,9 @@ function compareSelectedPlans() {
   const plans = ids.map(id => state.savedPlans.find(plan => plan.id === id)).filter(Boolean);
   $("#scheduleCompare").innerHTML = `<h3>Schedule comparison</h3><div class="comparison-grid count-${plans.length}">${plans.map(plan => `
     <article class="comparison-card">
-      <h4>${plan.name}</h4>
+      <h4>${escapeHtml(plan.name)}</h4>
       <div class="calendar compact">${calendarMarkup(plan.courses)}</div>
-      <p class="small muted">${plan.courses.map(course => course.label).join(" · ")}</p>
+      <p class="small muted">${plan.courses.map(course => escapeHtml(course.label)).join(" · ")}</p>
     </article>`).join("")}</div>`;
 }
 
@@ -483,7 +485,7 @@ async function loadOpportunities(category, rootSel) {
     }
     renderOpportunities(root, category, opportunities);
   } catch (err) {
-    root.innerHTML = `<div class="empty">Couldn't load cached ${category} results. (${err.message})</div>`;
+    root.innerHTML = `<div class="empty">Couldn't load cached ${escapeHtml(category)} results. (${escapeHtml(err.message)})</div>`;
   }
 }
 
@@ -507,7 +509,7 @@ async function searchOpportunities(category, rootSel, querySel, traceSel, btn) {
     }
     renderOpportunities(root, category, result.opportunities);
   } catch (err) {
-    root.innerHTML = `<div class="empty">Opportunity agents failed. (${err.message})</div>`;
+    root.innerHTML = `<div class="empty">Opportunity agents failed. (${escapeHtml(err.message)})</div>`;
   } finally {
     btn.disabled = false;
     btn.textContent = category === "industry" ? "Find jobs" : "Find research";
@@ -521,35 +523,36 @@ function renderAgentTrace(root, result) {
   root.innerHTML = `
     <div class="trace-head">
       <strong>Agent run</strong>
-      <span>${result.mode || "live-agent"} · memory: ${result.memory || "disabled"}</span>
+      <span>${escapeHtml(result.mode || "live-agent")} · memory: ${escapeHtml(result.memory || "disabled")}</span>
     </div>
     <div class="trace-steps">
-      ${steps.map(s => `<span class="${s.ok ? "ok" : "warn"}">${s.agent}: ${s.summary}</span>`).join("")}
+      ${steps.map(s => `<span class="${s.ok ? "ok" : "warn"}">${escapeHtml(s.agent)}: ${escapeHtml(s.summary)}</span>`).join("")}
     </div>`;
 }
 
 function renderOpportunities(root, category, opportunities) {
   root.innerHTML = opportunities.map(o => {
-      const reasons = (o.reasons || []).map(r => `<li>${r}</li>`).join("");
+      const reasons = (o.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join("");
+      const sourceUrl = safeExternalUrl(o.url || o.source);
       return `<article class="course-card">
         <div>
-          <h3>${o.name || o.project || "Opportunity"}</h3>
+          <h3>${escapeHtml(o.name || o.project || "Opportunity")}</h3>
           <div class="course-meta">
-            <span class="tag">${o.org || "org"}</span>
-            <span class="tag ${category === "industry" ? "warn" : "good"}">${category}</span>
+            <span class="tag">${escapeHtml(o.org || "org")}</span>
+            <span class="tag ${category === "industry" ? "warn" : "good"}">${escapeHtml(category)}</span>
             ${o.contact ? `<span class="tag">has contact</span>` : ""}
           </div>
           <ul class="reasons">${reasons}</ul>
-          ${o.project ? `<p class="desc">${o.project}</p>` : ""}
-          ${o.evidence ? `<p class="desc">${o.evidence.slice(0, 180)}${o.evidence.length > 180 ? "…" : ""}</p>` : ""}
+          ${o.project ? `<p class="desc">${escapeHtml(o.project)}</p>` : ""}
+          ${o.evidence ? `<p class="desc">${escapeHtml(o.evidence.slice(0, 180))}${o.evidence.length > 180 ? "…" : ""}</p>` : ""}
         </div>
         <div class="score-badge ${scoreClass(o.fitScore)}">
           <small>Match score</small>
           <span>${o.fitScore}</span>
         </div>
         <div class="card-actions">
-          ${o.source ? `<a class="btn" href="${o.source}" target="_blank" rel="noopener">Open source ↗</a>` : ""}
-          <button data-draft="${o.id}">✎ Draft outreach</button>
+          ${sourceUrl ? `<a class="btn" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open source ↗</a>` : ""}
+          <button data-draft="${escapeHtml(o.id)}">✎ Draft outreach</button>
         </div>
       </article>`;
   }).join("");

@@ -9,10 +9,16 @@
 import { getProvider } from "../../providers/index.ts";
 import type { StudentPrefs } from "../../scorer/courseScore.ts";
 import { log } from "../../lib/log.ts";
+import { z } from "zod";
+import { registerAgent } from "../registry.ts";
+import type { Agent, AgentContext } from "../types.ts";
+import { prefsFromProfile } from "../../scorer/candidates.ts";
 
 export interface QueryConstraints {
   subject?: string | null;
+  targetMajor?: string | null;
   interests?: string[];
+  keywords?: string[];
   minProfRating?: number | null;
   workloadTolerance?: "light" | "medium" | "heavy" | null;
   earliest?: string | null;
@@ -20,14 +26,32 @@ export interface QueryConstraints {
   daysOff?: string[];
   openOnly?: boolean;
   requirementFocus?: string[];
+  level?: "undergraduate" | "graduate" | "any";
 }
+
+const constraintsSchema = z.object({
+  subject: z.string().max(20).nullable().optional(),
+  targetMajor: z.string().max(120).nullable().optional(),
+  interests: z.array(z.string().max(80)).max(12).optional(),
+  keywords: z.array(z.string().max(80)).max(12).optional(),
+  minProfRating: z.number().min(0).max(5).nullable().optional(),
+  workloadTolerance: z.enum(["light", "medium", "heavy"]).nullable().optional(),
+  earliest: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+  latest: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+  daysOff: z.array(z.enum(["M", "Tu", "W", "Th", "F"])).max(5).optional(),
+  openOnly: z.boolean().optional(),
+  requirementFocus: z.array(z.string().max(100)).max(12).optional(),
+  level: z.enum(["undergraduate", "graduate", "any"]).optional(),
+});
 
 const PARSE_SYSTEM = `You convert a UC Berkeley student's natural-language class-search request into JSON.
 Return ONLY a JSON object with any of these keys (omit unknown ones):
-  subject (string, dept code like "COMPSCI"), interests (string[]),
+  subject (string, dept code like "COMPSCI"), targetMajor (string), interests (string[]),
+  keywords (string[] of course topics explicitly requested),
   minProfRating (number 0-5), workloadTolerance ("light"|"medium"|"heavy"),
   earliest ("HH:MM"), latest ("HH:MM"), daysOff (string[] of M,Tu,W,Th,F),
   openOnly (boolean), requirementFocus (string[]).
+  level ("undergraduate"|"graduate"|"any").
 Examples: "mornings" -> latest "12:00". "no friday" -> daysOff ["F"].
 "manageable/easy" -> workloadTolerance "light". "nothing below 3.5" -> minProfRating 3.5.`;
 
@@ -75,11 +99,26 @@ export const SUBJECT_ALIASES: Record<string, string> = {
   haas: "UGBA", business: "UGBA", ugba: "UGBA",
 };
 
+const MAJOR_BY_SUBJECT: Record<string, string> = {
+  COMPSCI: "Computer Science", EECS: "Electrical Engineering & Computer Sciences",
+  DATA: "Data Science", STAT: "Statistics", MATH: "Mathematics",
+  ECON: "Economics", COGSCI: "Cognitive Science", PSYCH: "Psychology",
+};
+
+const TOPICS = [
+  "machine learning", "artificial intelligence", "algorithms", "data science",
+  "systems", "security", "databases", "theory", "robotics", "natural language",
+  "computer vision", "biology", "climate", "finance",
+];
+
 export function heuristicParse(q: string): QueryConstraints {
   const s = q.toLowerCase();
   const c: QueryConstraints = {};
   for (const [alias, code] of Object.entries(SUBJECT_ALIASES)) {
     if (new RegExp(`\\b${alias}\\b`).test(s)) { c.subject = code; break; }
+  }
+  if (/\b(?:transfer|switch|change|move|declare)\b/.test(s) && c.subject) {
+    c.targetMajor = MAJOR_BY_SUBJECT[c.subject] ?? c.subject;
   }
   if (/\bmorning/.test(s)) c.latest = "12:00";
   if (/\bafternoon/.test(s)) { c.earliest = "12:00"; c.latest = "17:00"; }
@@ -87,7 +126,7 @@ export function heuristicParse(q: string): QueryConstraints {
   if (/manageable|easy|light|chill|low.?workload/.test(s)) c.workloadTolerance = "light";
   if (/hard|heavy|intense|rigorous/.test(s)) c.workloadTolerance = "heavy";
   if (/open|seats|not full/.test(s)) c.openOnly = true;
-  const rating = s.match(/(?:above|over|below|at least|minimum|min|no.*below)\s*([0-4](?:\.\d)?)/);
+  const rating = s.match(/(?:above|over|below|at least|minimum|min|no.*below)\s*([0-5](?:\.\d)?)/);
   if (rating?.[1]) c.minProfRating = Number(rating[1]);
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
   const codes = ["M", "Tu", "W", "Th", "F"];
@@ -97,6 +136,10 @@ export function heuristicParse(q: string): QueryConstraints {
   // requirement focus
   const req = s.match(/(upper[\s-]?div\w*|breadth|elective|requirement|major[\s-]?required?)/);
   if (req?.[1]) c.requirementFocus = [req[1]];
+  const keywords = TOPICS.filter(topic => s.includes(topic));
+  if (keywords.length) c.keywords = keywords;
+  if (/\b(?:graduate|grad)\s+(?:class|course)/.test(s)) c.level = "graduate";
+  else if (/\bundergrad(?:uate)?\b/.test(s)) c.level = "undergraduate";
   return c;
 }
 
@@ -112,7 +155,12 @@ export async function parseQuery(query: string): Promise<{ constraints: QueryCon
     });
     const match = res.text.match(/\{[\s\S]*\}/);
     if (!match) return { constraints: heuristicParse(query), mode: "heuristic" };
-    const parsed = JSON.parse(match[0]) as QueryConstraints;
+    const validated = constraintsSchema.safeParse(JSON.parse(match[0]));
+    if (!validated.success) {
+      log.warn("advisor LLM returned invalid constraints", { issues: validated.error.issues.length });
+      return { constraints: heuristicParse(query), mode: "heuristic" };
+    }
+    const parsed: QueryConstraints = validated.data;
     if (parsed.subject) parsed.subject = (SUBJECT_ALIASES[parsed.subject.toLowerCase()] ?? parsed.subject).toUpperCase();
     return { constraints: parsed, mode: "llm" };
   } catch (error) {
@@ -135,6 +183,7 @@ function dedupeRequirements(reqs: string[]): string[] {
 export function mergePrefs(base: StudentPrefs, c: QueryConstraints): StudentPrefs {
   return {
     ...base,
+    major: c.targetMajor ?? base.major,
     interests: [...new Set([...(base.interests ?? []), ...(c.interests ?? [])])],
     requirementsRemaining: dedupeRequirements([...(base.requirementsRemaining ?? []), ...(c.requirementFocus ?? [])]),
     minProfRating: c.minProfRating ?? base.minProfRating,
@@ -146,3 +195,65 @@ export function mergePrefs(base: StudentPrefs, c: QueryConstraints): StudentPref
     },
   };
 }
+
+export function followUpFor(query: string, base: StudentPrefs, constraints: QueryConstraints): string | null {
+  if (/\b(?:transfer|switch|change|move|declare)\b/i.test(query) && !constraints.targetMajor) {
+    return "Which major are you planning to move into?";
+  }
+  if (!constraints.subject && !constraints.targetMajor && !constraints.keywords?.length && !base.major &&
+      !(constraints.requirementFocus?.length || base.requirementsRemaining?.length)) {
+    return "Which subject, major, or remaining requirement should I prioritize?";
+  }
+  return null;
+}
+
+export interface StudentQueryInput { userId: string; query: string }
+export type QueryIntent = "course_search" | "policy_question";
+export interface StudentQueryOutput {
+  intent: QueryIntent;
+  constraints: QueryConstraints;
+  prefs: StudentPrefs;
+  followUp: string | null;
+  mode: "llm" | "heuristic";
+  baseMajor: string | null;
+  summary: string;
+}
+
+export function classifyIntent(query: string): QueryIntent {
+  const text = query.toLowerCase().trim();
+  if (/^(can|may)\s+i\s+take\b/.test(text)) return "policy_question";
+  if (/^(which|what)\s+(courses?|classes?)\b/.test(text)) return "course_search";
+  const explicitCourseSearch = /\b(find|recommend|show|list|browse|search for|looking for)\b.*\b(courses?|classes?)\b|\b(courses?|classes?)\b.*\b(find|recommend|show|list|browse)/.test(text);
+  if (explicitCourseSearch) return "course_search";
+  const questionForm = /^(can|may|am|is|are|do|does|how|what|which|when|where|why)\b/.test(text);
+  const policyTopic = /\b(policy|policies|requirement|prerequisite|prereq|eligible|eligibility|declare|declaration|transfer|graduate|graduation|degree|major|minor|unit limit|academic rule)\b/.test(text);
+  return questionForm && policyTopic ? "policy_question" : "course_search";
+}
+
+export async function manageStudentQuery(input: StudentQueryInput, ctx: AgentContext): Promise<StudentQueryOutput> {
+  const basePrefs = prefsFromProfile(ctx.repo.getProfile(input.userId));
+  const intent = classifyIntent(input.query);
+  const { constraints, mode } = await parseQuery(input.query);
+  const prefs = mergePrefs(basePrefs, constraints);
+  const followUp = intent === "course_search" ? followUpFor(input.query, basePrefs, constraints) : null;
+  const focus = constraints.targetMajor ?? constraints.subject ?? constraints.keywords?.join(", ") ?? basePrefs.major ?? "unspecified focus";
+  return {
+    constraints,
+    intent,
+    prefs,
+    followUp,
+    mode,
+    baseMajor: basePrefs.major ?? null,
+    summary: `Classified this as ${intent === "course_search" ? "course discovery" : "a school-policy question"} using ${mode} parsing; academic focus: ${focus}${followUp ? "; clarification requested" : ""}.`,
+  };
+}
+
+export const studentQueryAgent: Agent<StudentQueryInput, StudentQueryOutput> = {
+  name: "student-query-agent",
+  description: "Routes course-search versus school-policy intent, understands the student's saved profile and constraints, and asks a focused follow-up when needed.",
+  status: "active",
+  skills: [],
+  run: manageStudentQuery,
+};
+
+registerAgent(studentQueryAgent);

@@ -67,6 +67,9 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 48px; }
 .filters input[type=search] { flex: 1; min-width: 200px; }
 .check { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13.5px; }
 .advisor-summary { background: var(--card); border: var(--panel-border); border-left: 3px solid var(--brand); border-radius: var(--panel-radius); padding: 14px 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.advisor-insight { margin-top: 8px; font-size: 13px; }
+.advisor-insight.warn { color: var(--warn); }
+.advisor-follow-up { margin-top: 10px; padding: 9px 11px; border-left: 3px solid var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--card)); border-radius: 6px; }
 .agent-trace { margin: 10px 0 4px; }
 .agent-trace > summary { cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 600; }
 .trace-list { margin: 8px 0 0; padding-left: 20px; font-size: 13px; }

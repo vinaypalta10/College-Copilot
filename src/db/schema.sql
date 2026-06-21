@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS targets (
   id            TEXT PRIMARY KEY,
+  user_id       TEXT,
   priority      INTEGER NOT NULL,
   path          TEXT NOT NULL,
   name          TEXT NOT NULL,

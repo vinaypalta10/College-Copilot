@@ -14,8 +14,7 @@ it; the heavy lifting stays in the TypeScript app.
 
 - The 7-agent research pipeline + `ResearchOpportunity` schema.
 - The orchestrator returns a full step **trace** (good for the demo).
-- `asione.ts` formats results into a single chat answer.
-- `chat_agent.py` speaks the uAgents Chat Protocol and calls
+- `chat_agent.py` formats results, speaks the uAgents Chat Protocol, and calls
   `POST /api/opportunities/search`.
 
 ## What YOU must do on Fetch.ai's platform
@@ -50,7 +49,7 @@ there, then come back and tell me if anything errors:
 
 ```bash
 export COLLEGE_COPILOT_URL="https://<your-public-host>"
-export COLLEGE_COPILOT_TOKEN="<session token or API key for /api>"
+export COLLEGE_COPILOT_TOKEN="<active cc_session token>"
 export AGENT_SEED="<stable secret so the agent keeps its address>"
 ```
 
@@ -62,7 +61,6 @@ those from this environment. Once you have the ASI:One API key and an Agentverse
 account, run `python chat_agent.py`, paste me any error output, and I'll help you
 debug the bridge and the manifest.
 
-> Note: `POST /api/opportunities/search` currently requires an authenticated
-> session (`requireAuth`). For the hosted agent you'll likely want a dedicated
-> API token / service route — tell me if you want me to add a token-based auth
-> path for the agent so it doesn't need a browser session.
+`POST /api/opportunities/search` requires authentication. The bridge sends the
+opaque `cc_session` value as a bearer token; the server accepts the same session
+token from either the browser cookie or the `Authorization` header.

@@ -10,7 +10,7 @@ existing College Copilot HTTP endpoint to do the real multi-agent work.
 
 Prereqs (run locally first):
     pip install uagents uagents-core requests
-    export COLLEGE_COPILOT_URL="http://localhost:3000"   # your running TS server
+    export COLLEGE_COPILOT_URL="http://localhost:4174"   # your running TS server
     export COLLEGE_COPILOT_TOKEN="<a session token / API key>"
 
 Then:
@@ -31,7 +31,7 @@ from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
 )
 
-COLLEGE_COPILOT_URL = os.environ.get("COLLEGE_COPILOT_URL", "http://localhost:3000")
+COLLEGE_COPILOT_URL = os.environ.get("COLLEGE_COPILOT_URL", "http://localhost:4174")
 COLLEGE_COPILOT_TOKEN = os.environ.get("COLLEGE_COPILOT_TOKEN", "")
 
 agent = Agent(name="college-copilot-research", seed=os.environ.get("AGENT_SEED", "college-copilot-research-seed"))

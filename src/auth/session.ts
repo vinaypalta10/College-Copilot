@@ -51,7 +51,9 @@ export function clearSessionCookie(res: Response): void {
 export function attachUser(repo: Repo) {
   return (req: AuthedRequest, _res: Response, next: NextFunction): void => {
     const cookies = parseCookies(req.headers.cookie);
-    const token = cookies[COOKIE_NAME];
+    const authorization = req.headers.authorization;
+    const bearer = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+    const token = cookies[COOKIE_NAME] || bearer;
     if (token) {
       const session = repo.getSession(token);
       if (session && new Date(session.expires_at).getTime() > Date.now()) {

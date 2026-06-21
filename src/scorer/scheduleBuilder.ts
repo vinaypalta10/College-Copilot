@@ -51,7 +51,7 @@ export interface BuildResult {
  * Greedy: consider sections by descending fit, add each unless it conflicts
  * with an already-chosen section or would exceed maxUnits. One section per course.
  */
-export function buildSchedule(sections: SchedulableSection[], maxUnits = 18): BuildResult {
+export function buildSchedule(sections: SchedulableSection[], maxUnits = 18, maxCourses = Number.POSITIVE_INFINITY): BuildResult {
   const ordered = [...sections].sort((a, b) => b.fitScore - a.fitScore);
   const chosen: SchedulableSection[] = [];
   const skipped: BuildResult["skipped"] = [];
@@ -59,6 +59,7 @@ export function buildSchedule(sections: SchedulableSection[], maxUnits = 18): Bu
   const usedCourses = new Set<string>();
 
   for (const s of ordered) {
+    if (chosen.length >= maxCourses) { skipped.push({ section: s, reason: `would exceed ${maxCourses}-course cap` }); continue; }
     if (usedCourses.has(s.courseId)) { skipped.push({ section: s, reason: "another section of this course is already chosen" }); continue; }
     const conflict = chosen.find(c => slotsConflict(c.slot, s.slot));
     if (conflict) { skipped.push({ section: s, reason: `conflicts with ${conflict.label}` }); continue; }

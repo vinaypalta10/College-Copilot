@@ -15,8 +15,9 @@ src/agents/
     README.md
     index.ts
     advising-orchestrator.ts
-    parseQuery.ts
-    specialists/
+    student-query-agent.ts
+    school-policy-agent.ts
+    planning-evaluator-agent.ts
     # Goal: course planning + Token Company compression story.
 
   research-opportunities/
@@ -44,7 +45,7 @@ The LLM should do the easiest job:
 - parse natural language
 - infer goals such as "transfer to CS later"
 - produce structured constraints
-- explain the final plan in plain language
+- explain the course recommendations in plain language
 
 The LLM should not read the whole catalog. Code should retrieve and compress the
 context first.
@@ -135,15 +136,15 @@ Current implementation files:
 course-planner/advising-orchestrator.ts
   Course planner orchestrator.
 
-course-planner/parseQuery.ts
-  Natural-language parser for course-planner constraints.
+course-planner/student-query-agent.ts
+  Student intent, profile, constraints, major goals, and follow-ups.
 
-course-planner/specialists/course-finder.ts
-course-planner/specialists/professor-evaluator.ts
-course-planner/specialists/requirement-checker.ts
-course-planner/specialists/schedule-builder.ts
-course-planner/specialists/workload-estimator.ts
-  Course-planner worker agents.
+course-planner/school-policy-agent.ts
+  Conservative course-level and stated-requirement policy interpretation.
+
+course-planner/planning-evaluator-agent.ts
+  Retrieval, scoring, professor evaluation, scheduling, workload, compression,
+  and final judgement.
 
 research-opportunities/orchestrator.ts
   Current research opportunity discovery orchestrator.

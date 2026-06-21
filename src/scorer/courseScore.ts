@@ -9,6 +9,7 @@
 
 import type { CourseRow, SectionRow, InstructorRow } from "../db/repo.ts";
 import { subjectsForMajor } from "./majorSubjects.ts";
+import { courseMatchesRequirement } from "./requirements.ts";
 
 export interface StudentPrefs {
   major?: string | null;
@@ -79,7 +80,6 @@ export function scoreCourse(c: CourseCandidate, prefs: StudentPrefs): FitResult 
   let score = 50;
 
   const courseLabel = `${c.course.subject} ${c.course.number}`;
-  const haystack = norm(`${courseLabel} ${c.course.title} ${c.course.description ?? ""} ${c.course.requirements_satisfied ?? ""}`);
 
   // Already completed -> hard demote.
   if ((prefs.completedCourses ?? []).some(cc => norm(cc) === norm(courseLabel))) {
@@ -101,10 +101,7 @@ export function scoreCourse(c: CourseCandidate, prefs: StudentPrefs): FitResult 
 
   // Requirement match.
   for (const req of prefs.requirementsRemaining ?? []) {
-    const tokens = norm(req).split(/[^A-Z0-9]+/).filter(t => t.length > 2);
-    const hit = tokens.some(t => haystack.includes(t)) ||
-      (c.course.requirements_satisfied ?? "").toUpperCase().includes(norm(req));
-    if (hit) {
+    if (courseMatchesRequirement(c.course, req)) {
       flags.requirementMatch = true;
       score += 26;
       reasons.push(`Helps satisfy "${req}".`);
