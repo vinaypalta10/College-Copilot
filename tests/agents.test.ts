@@ -1,11 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { RankedCourse } from "../src/scorer/candidates.ts";
-import { checkRequirements } from "../src/agents/specialists/requirement-checker.ts";
-import { estimateScheduleWorkload } from "../src/agents/specialists/workload-estimator.ts";
-import { buildFromCandidates } from "../src/agents/specialists/schedule-builder.ts";
-import { heuristicParse, mergePrefs } from "../src/agents/parseQuery.ts";
+import { checkRequirements, reviewSchoolPolicy } from "../src/agents/course-planner/school-policy-agent.ts";
+import { classifyIntent, followUpFor, heuristicParse, mergePrefs } from "../src/agents/course-planner/student-query-agent.ts";
 import { scoreCourse } from "../src/scorer/courseScore.ts";
+import { courseMatchesRequirement } from "../src/scorer/requirements.ts";
 
 function rc(subject: string, number: string, opts: { units?: number; avgGpa?: number; days?: string; start?: number; end?: number; title?: string } = {}): RankedCourse {
   const course = {
@@ -22,29 +21,28 @@ function rc(subject: string, number: string, opts: { units?: number; avgGpa?: nu
   return { cand, fit: scoreCourse(cand, {}) };
 }
 
-test("requirement-checker maps courses to requirements and reports uncovered", () => {
+test("school-policy coverage maps courses to requirements and reports uncovered", () => {
   const cands = [rc("COMPSCI", "170", { title: "Efficient Algorithms" }), rc("DATA", "100", { title: "Principles of Data Science" })];
-  const out = checkRequirements({ candidates: cands, requirementsRemaining: ["algorithms", "Breadth: Arts"] });
+  const out = checkRequirements(cands, ["algorithms", "Breadth: Arts"]);
   assert.ok(out.coverage.some(c => c.requirement === "algorithms" && c.courses.includes("COMPSCI 170")));
   assert.deepEqual(out.uncovered, ["Breadth: Arts"]);
 });
 
-test("workload-estimator flags a heavy semester", () => {
-  const heavy = [rc("A", "1", { units: 5, avgGpa: 2.7 }), rc("B", "2", { units: 5, avgGpa: 2.8 }), rc("C", "3", { units: 5, avgGpa: 2.9 })];
-  const out = estimateScheduleWorkload({ schedule: heavy });
-  assert.equal(out.balance, "heavy");
-  assert.ok(out.totalUnits >= 15);
+test("upper-division requirements do not match lower-division descriptions", () => {
+  assert.equal(courseMatchesRequirement(rc("COMPSCI", "39", { title: "Lower Division Seminar" }).cand.course, "CS upper division"), false);
+  assert.equal(courseMatchesRequirement(rc("COMPSCI", "170", { title: "Algorithms" }).cand.course, "CS upper division"), true);
 });
 
-test("schedule-builder assembles conflict-free set from candidates", () => {
-  const a = rc("CS", "61A", { days: "MWF", start: 600, end: 660 });
-  const b = rc("CS", "61B", { days: "MWF", start: 630, end: 690 }); // conflicts with a
-  const c = rc("CS", "70", { days: "TuTh", start: 600, end: 660 });
-  const out = buildFromCandidates({ candidates: [a, b, c], maxUnits: 18 });
-  const labels = out.chosen.map(rc => `${rc.cand.course.subject} ${rc.cand.course.number}`);
-  assert.ok(labels.includes("CS 61A"));
-  assert.ok(labels.includes("CS 70"));
-  assert.ok(!labels.includes("CS 61B"));
+test("school-policy agent keeps policy claims conservative", () => {
+  const policy = reviewSchoolPolicy({
+    prefs: { major: "Computer Science", requirementsRemaining: ["CS upper division"] },
+    constraints: { targetMajor: "Data Science" },
+    baseMajor: "Computer Science",
+    query: "Can I switch to Data Science?",
+  });
+  assert.equal(policy.level, "undergraduate");
+  assert.match(policy.warnings.join(" "), /not an official Berkeley degree audit/i);
+  assert.match(policy.warnings.join(" "), /does not verify change-of-major eligibility/i);
 });
 
 test("heuristicParse extracts subject, time, workload, rating, daysOff", () => {
@@ -63,4 +61,35 @@ test("mergePrefs overlays constraints onto base profile", () => {
   assert.equal(merged.minProfRating, 4.0);
   assert.equal(merged.timePrefs?.earliest, "09:00");
   assert.equal(merged.timePrefs?.latest, "15:00");
+});
+
+test("heuristicParse recognizes a major-transition goal", () => {
+  const c = heuristicParse("I want to switch to CS");
+  assert.equal(c.subject, "COMPSCI");
+  assert.equal(c.targetMajor, "Computer Science");
+});
+
+test("mergePrefs plans against a target major without mutating saved profile input", () => {
+  const base = { major: "Economics", requirementsRemaining: [] };
+  const merged = mergePrefs(base, { targetMajor: "Computer Science" });
+  assert.equal(merged.major, "Computer Science");
+  assert.equal(base.major, "Economics");
+});
+
+test("followUpFor asks for academic direction only when profile and query lack it", () => {
+  assert.match(followUpFor("help me choose", {}, {}) ?? "", /subject|major|requirement/i);
+  assert.equal(followUpFor("help me choose", { major: "Data Science" }, {}), null);
+});
+
+test("heuristicParse extracts deterministic topic keywords", () => {
+  const c = heuristicParse("Find machine learning and computer vision courses");
+  assert.deepEqual(c.keywords, ["machine learning", "computer vision"]);
+  assert.equal(followUpFor("Find machine learning courses", {}, c), null);
+});
+
+test("student-query agent separates policy questions from course discovery", () => {
+  assert.equal(classifyIntent("What are my remaining degree requirements?"), "policy_question");
+  assert.equal(classifyIntent("Can I take CS 170 without CS 70?"), "policy_question");
+  assert.equal(classifyIntent("Find machine learning courses with good professors"), "course_search");
+  assert.equal(classifyIntent("Which courses satisfy my breadth requirement?"), "course_search");
 });

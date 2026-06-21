@@ -34,7 +34,7 @@ Parallelizable across the team. Each item lists a suggested owner slot.
 
 **Demo script target story:** "I'm a CS junior. I tell College Copilot *'finish my upper-div
 requirement, mornings only, no prof below 3.5, manageable workload'* → it ranks classes with
-reasons, I add three, it auto-builds a conflict-free schedule, and over in Research it drafts a
+reasons, I add three to a conflict-checked calendar, and over in Research it drafts a
 warm email to a lab. All in 30 seconds."
 
 ---
@@ -97,5 +97,5 @@ Ranked by **impact ÷ effort** for the next few hours:
 
 ## Definition of done for the demo
 A teammate who has never seen it can: log in (dev-login), set preferences, get ranked classes
-with reasons, ask one natural-language question, auto-build a conflict-free schedule, and save it
+with reasons, ask one natural-language question, manually build a conflict-checked schedule, and save it
 — with no crashes and on a public or local URL.

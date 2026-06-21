@@ -32,6 +32,7 @@ function freshDb(): { repo: Repo; cleanup: () => void; db: Database.Database } {
 function sampleTarget(overrides: Partial<TargetRow> = {}): TargetRow {
   return {
     id: "t_test",
+    user_id: "user-a",
     priority: 1,
     path: "A",
     name: "Test Target",
@@ -60,6 +61,19 @@ test("repo upsert and list targets", () => {
     const list = repo.listTargets();
     assert.equal(list.length, 1);
     assert.equal(list[0]!.name, "Test Target");
+  } finally {
+    cleanup();
+  }
+});
+
+test("opportunity reads and drafts can be scoped to one user", () => {
+  const { repo, cleanup } = freshDb();
+  try {
+    repo.upsertTarget(sampleTarget({ id: "user-a:shared", user_id: "user-a" }));
+    repo.upsertTarget(sampleTarget({ id: "user-b:shared", user_id: "user-b" }));
+    assert.deepEqual(repo.listOpportunities("research", "user-a").map(row => row.id), ["user-a:shared"]);
+    assert.equal(repo.getTargetForUser("user-b:shared", "user-a"), undefined);
+    assert.equal(repo.getTargetForUser("user-a:shared", "user-a")?.user_id, "user-a");
   } finally {
     cleanup();
   }

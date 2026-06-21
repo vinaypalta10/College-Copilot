@@ -2,6 +2,7 @@ import type { DB } from "./client.ts";
 
 export interface TargetRow {
   id: string;
+  user_id: string | null;
   priority: number;
   path: string;
   name: string;
@@ -342,13 +343,14 @@ export class Repo {
   upsertTarget(row: TargetRow): void {
     this.db.prepare(`
       INSERT INTO targets (
-        id, priority, path, name, lab, project, fit, contact, sentence,
+        id, user_id, priority, path, name, lab, project, fit, contact, sentence,
         source, notes, evidence, score, score_facets, extracted_at, last_seen_at, auto, category
       ) VALUES (
-        @id, @priority, @path, @name, @lab, @project, @fit, @contact, @sentence,
+        @id, @user_id, @priority, @path, @name, @lab, @project, @fit, @contact, @sentence,
         @source, @notes, @evidence, @score, @score_facets, @extracted_at, @last_seen_at, @auto, @category
       )
       ON CONFLICT(id) DO UPDATE SET
+        user_id       = excluded.user_id,
         priority      = excluded.priority,
         path          = excluded.path,
         name          = excluded.name,
@@ -374,6 +376,10 @@ export class Repo {
 
   getTarget(id: string): TargetRow | undefined {
     return this.db.prepare(`SELECT * FROM targets WHERE id = ?`).get(id) as TargetRow | undefined;
+  }
+
+  getTargetForUser(id: string, userId: string): TargetRow | undefined {
+    return this.db.prepare(`SELECT * FROM targets WHERE id = ? AND user_id = ?`).get(id, userId) as TargetRow | undefined;
   }
 
   getTargetBySource(source: string): TargetRow | undefined {
@@ -432,10 +438,10 @@ export class Repo {
   }
 
   /** Opportunities (targets) filtered by category, highest score first. */
-  listOpportunities(category: string): TargetRow[] {
+  listOpportunities(category: string, userId: string): TargetRow[] {
     return this.db.prepare(
-      `SELECT * FROM targets WHERE COALESCE(category, 'research') = ? ORDER BY score DESC, priority ASC`,
-    ).all(category) as TargetRow[];
+      `SELECT * FROM targets WHERE category = ? AND user_id = ? ORDER BY score DESC, priority ASC`,
+    ).all(category, userId) as TargetRow[];
   }
 
   startScan(startedAt: string): number {

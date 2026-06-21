@@ -25,8 +25,8 @@ test("parseEecsFacultyList extracts the actual professor homepage portrait image
   `;
   const results = parseEecsFacultyList(html, { name: "Test", url: "https://www2.eecs.berkeley.edu/Faculty/Lists/CS/faculty.html" });
   assert.equal(results.length, 1);
-  assert.equal(results[0].name, "Pieter Abbeel");
-  assert.equal(results[0].imageUrl, "https://www2.eecs.berkeley.edu/Faculty/Photos/Homepages/abbeel.jpg");
+  assert.equal(results[0]!.name, "Pieter Abbeel");
+  assert.equal(results[0]!.imageUrl, "https://www2.eecs.berkeley.edu/Faculty/Photos/Homepages/abbeel.jpg");
 });
 
 test("parseEecsFacultyBio selects the homepage image only when it matches the professor name", () => {

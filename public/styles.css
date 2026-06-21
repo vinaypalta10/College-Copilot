@@ -158,13 +158,15 @@ main { max-width: 1120px; margin: 0 auto; padding: 30px 28px 56px; }
 .filters .voice-input { min-width: 0; }
 .check { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13.5px; }
 .advisor-summary { background: #eef3f8; border: 1px solid var(--line); border-left: 4px solid var(--brand-gold); border-radius: 4px; padding: 14px 16px; margin-bottom: 16px; box-shadow: none; }
+.advisor-insight { margin-top: 8px; font-size: 13px; }
+.advisor-insight.warn { color: var(--warn); }
+.advisor-follow-up { margin-top: 10px; padding: 9px 11px; border-left: 3px solid var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--card)); border-radius: 6px; }
 .agent-trace { margin: 10px 0 4px; }
 .agent-trace > summary { cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 600; }
 .trace-list { margin: 8px 0 0; padding-left: 20px; font-size: 13px; }
 .trace-list li { margin: 3px 0; }
 .trace-list li b { color: var(--accent); }
 .trace-list li.step-fail b { color: var(--bad); }
-#useAdvisorSchedule { margin-top: 8px; }
 .trace-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; }
 .trace-head strong { color: var(--ink); }
 .trace-steps { display: grid; gap: 6px; margin-top: 8px; }

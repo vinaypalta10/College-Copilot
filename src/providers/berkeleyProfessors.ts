@@ -129,7 +129,7 @@ function findProfessorImageUrl(html: string, baseUrl?: string, professorName?: s
   const candidates = [...html.matchAll(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi)]
     .map(match => {
       const raw = match[0];
-      const src = match[1].trim();
+      const src = match[1]!.trim();
       const absolute = absolutize(src, baseUrl || "");
       if (!absolute || !/\/Faculty\/Photos\/Homepages\//i.test(absolute)) return null;
       const alt = /alt=["']([^"']*)["']/i.exec(raw)?.[1]?.trim() || "";
@@ -143,7 +143,7 @@ function findProfessorImageUrl(html: string, baseUrl?: string, professorName?: s
   const nameInSrc = candidates.find(candidate => normalizedName && candidate.src.toLowerCase().includes(normalizedName));
   if (nameInSrc) return nameInSrc.src;
 
-  return candidates.length === 1 ? candidates[0].src : candidates[0]?.src ?? null;
+  return candidates.length === 1 ? candidates[0]!.src : candidates[0]?.src ?? null;
 }
 
 export function parseEecsFacultyBio(html: string, baseUrl?: string, professorName?: string): { bio: string; field: string | null; email: string | null; title: string | null; imageUrl: string | null } {

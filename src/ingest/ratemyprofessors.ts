@@ -39,10 +39,12 @@ function firstNameOf(name: string): string {
 
 /** Best-effort RMP rating for a Berkeley instructor by display name. Null if not found. */
 export async function fetchRmpRating(name: string): Promise<RmpRating | null> {
+  const timeoutMs = Math.max(500, Number(process.env.RMP_TIMEOUT_MS || 4000));
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: { Authorization: AUTH, "Content-Type": "application/json" },
     body: JSON.stringify({ query: TEACHER_QUERY, variables: { text: lastNameOf(name), sid: BERKELEY_SCHOOL_ID } }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`RMP ${res.status}`);
   const json = await res.json() as { data?: { newSearch?: { teachers?: { edges?: Array<{ node: RmpRating }> } } } };

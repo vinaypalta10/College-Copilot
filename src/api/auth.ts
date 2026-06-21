@@ -14,8 +14,9 @@ const devLoginBody = z.object({
   name: z.string().max(120).optional(),
 });
 
-function devLoginAllowed(): boolean {
-  return !isConfigured() || process.env.DEV_LOGIN === "true";
+export function devLoginAllowed(): boolean {
+  if (process.env.DEV_LOGIN === "true") return true;
+  return process.env.NODE_ENV !== "production" && !isConfigured();
 }
 
 export function authRouter(db: DB): Router {

@@ -2,7 +2,7 @@
 
 A multi-user agent for UC Berkeley students that does the tedious cross-referencing nobody
 enjoys: filtering classes by **remaining requirements**, **RateMyProfessors rating**,
-**workload**, and **time constraints**, then assembling a **conflict-free schedule** — and
+**workload**, and **time constraints**, then letting students add choices to a conflict-checked calendar — and
 finding **research opportunities** worth a warm outreach email.
 
 Students normally have many constraints but scattered information; College Copilot gathers it
@@ -16,13 +16,13 @@ for them and ranks every class against their profile with a plain-language "why 
 **Team docs:** [ROADMAP.md](ROADMAP.md) (hour-by-hour build plan) · [SPONSORS.md](SPONSORS.md) (sponsor integration tracker — fill this in).
 
 ### ✅ Built so far (working prototype)
-- **Auth & multi-user** — Google OAuth + DB-backed sessions, with keyless **dev-login** for demos.
+- **Auth & multi-user** — Google OAuth + DB-backed sessions, with keyless **dev-login** for local demos.
 - **Berkeley course ingestion** — Berkeleytime (catalog, sections, grades) + RateMyProfessors enrichment.
 - **Explainable ranking** — every class scored 0-100 vs. your profile with reasons (requirement, RMP, workload, time).
 - **Advisor** — natural-language search ("CS, mornings, light workload, ≥3.5 prof") → re-ranked results.
-- **Scheduling** — shortlist → auto-built conflict-free timetable → weekly calendar → saved plans.
-- **Research tab** — run opportunity agents that fetch live sources, rank results, and draft outreach.
-- **Quality** — deterministic scorer + schedule builder covered by unit tests.
+- **Scheduling** — manually add recommended courses → conflict-checked weekly calendar → saved plans.
+- **Research tab** — run opportunity agents that fetch live sources and draft outreach.
+- **Quality** — deterministic scorer + conflict detection covered by unit tests.
 - **Redis catalog cache** — the whole Berkeley catalog (40 subjects, ~1,400 courses) is cached
   in Redis as a read-through snapshot so the advisor/Discover hot path doesn't rebuild its
   candidate set from SQLite on every request. Falls back to SQLite when Redis is absent.
@@ -51,7 +51,7 @@ npm run dev                # http://localhost:4174
 ```
 
 No keys are required to run:
-- **No Google OAuth** → local **dev-login** (email only) is enabled automatically.
+- **No Google OAuth** → local **dev-login** (email only) is enabled automatically outside production.
 - **No LLM key** → the advisor uses a keyword **heuristic** parser; scoring is fully deterministic.
 
 To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAUTH_REDIRECT_URL`
@@ -66,8 +66,7 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
    average GPA, workload estimate, requirement match, meeting time, open seats, and reasons.
 4. **Ask the Copilot** — e.g. *"CS upper-div, mornings, manageable workload, nothing below 3.5"* —
    parsed into constraints, merged with your profile, re-ranked.
-5. **Schedule** — add classes to a shortlist, auto-build a conflict-free timetable (unit-capped),
-   see clashes on a weekly calendar, and save plans.
+5. **Schedule** — manually add recommended classes, see conflicts on a weekly calendar, and save plans.
 6. **Research** — browse lab / URAP opportunities and draft a warm outreach email (opens Gmail
    compose; nothing sends automatically).
 
@@ -79,7 +78,7 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
 | `npm start` | Same as dev without watch. |
 | `npm run import:courses` | Import all courses + sections + grades from Berkeleytime (the full catalog by default), enrich instructors from RateMyProfessors, then warm the Redis catalog cache + vector index. Optional flags: `--subjects COMPSCI,DATA --per-subject 35 --limit 60 --no-rmp`. Idempotent. |
 | `npm run clean:legacy-data` | Remove cached opportunity rows while preserving courses, instructors, users, profiles, and plans. |
-| `npm test` | node:test suite (course scoring + schedule builder are pure & fully unit-tested). |
+| `npm test` | node:test suite (course scoring + calendar conflict detection are pure and unit-tested). |
 
 ## Data sources (UC Berkeley)
 
@@ -137,8 +136,8 @@ src/
                        advisor, plans, schedule, opportunities
   ingest/              berkeleytime.ts (catalog) + ratemyprofessors.ts (ratings)
   scorer/              courseScore.ts (fit, explainable) + candidates.ts (ranking)
-                       + scheduleBuilder.ts (conflict-free assembly) + opportunityScore.ts
-  agents/              advising orchestrator + course/schedule/professor specialists
+                       + scheduleBuilder.ts (conflict-free assembly)
+  agents/              three-agent course planner: query, policy, evaluation
   skills/              professor-rating + registry
   providers/           Claude API (Anthropic) abstraction for advisor
   db/                  SQLite schema + typed repo (better-sqlite3) + migrations;
@@ -157,7 +156,7 @@ data/outreach.db       SQLite store (gitignored; override with COLLEGE_COPILOT_D
 
 Full list with comments in `.env.example`. Highlights:
 
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAUTH_REDIRECT_URL` — Google Sign-In (falls back to dev-login).
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAUTH_REDIRECT_URL` — Google Sign-In (local development falls back to dev-login).
 - `OAUTH_HOSTED_DOMAIN` — optional, restrict sign-in to one email domain.
 - `COURSE_TERM` — default term (e.g. `fall-2026`). *Named `COURSE_TERM`, not `TERM`, to avoid the shell's `$TERM`.*
 - `ANTHROPIC_API_KEY` — Claude API; powers the advisor's NL parsing (heuristic fallback when absent).
@@ -178,7 +177,7 @@ Full list with comments in `.env.example`. Highlights:
 
 - Imports the lecture (primary) section per course; discussion/lab sub-sections aren't yet
   scheduled individually.
-- Research-opportunity data is currently shared (seeded from curated local JSON) rather than
-  per-user; full per-user isolation of the outreach pipeline is a follow-up.
+- Research and job search results are isolated per user. Older unowned cache rows are retained
+  for migration safety but are not exposed through the multi-user API.
 - Requirement matching is text-based against the student's stated remaining requirements; it does
   not yet parse official degree audits.

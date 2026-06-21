@@ -2,15 +2,13 @@ import "./lib/loadEnv.ts";
 import express from "express";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getDb } from "./db/client.ts";
+import { closeDb, getDb } from "./db/client.ts";
 import { Repo } from "./db/repo.ts";
 import { authRouter } from "./api/auth.ts";
 import { profileRouter } from "./api/profile.ts";
 import { coursesRouter } from "./api/courses.ts";
 import { advisorRouter } from "./api/advisor.ts";
 import { plansRouter } from "./api/plans.ts";
-import { scheduleRouter } from "./api/schedule.ts";
-import { opportunitiesRouter } from "./api/opportunities.ts";
 import { professorsRouter } from "./api/professors.ts";
 import { voiceRouter } from "./api/voice.ts";
 import { attachUser } from "./auth/session.ts";
@@ -47,10 +45,8 @@ app.use(attachUser(repo));
 app.use("/api/auth", authRouter(db));
 app.use("/api/profile", profileRouter(db));
 app.use("/api/courses", coursesRouter(db));
-app.use("/api/advisor", limitPosts(writeLimit), advisorRouter(db)); // runs the multi-agent pipeline
+app.use("/api/advisor", limitPosts(writeLimit), advisorRouter(db));
 app.use("/api/plans", plansRouter(db));
-app.use("/api/schedule", scheduleRouter(db));
-app.use("/api/opportunities", opportunitiesRouter(db));
 app.use("/api/professors", limitPosts(writeLimit), professorsRouter(db));
 app.use("/api/voice", limitPosts(writeLimit), voiceRouter());
 
@@ -71,10 +67,10 @@ app.use(express.static(publicDir, { extensions: ["html"], index: "index.html" })
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   log.error("unhandled error", { error: err.message });
-  res.status(500).json({ error: err.message });
+  res.status(500).json({ error: process.env.NODE_ENV === "production" ? "internal server error" : err.message });
 });
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   log.info("server listening", { port, courses: repo.countCourses() });
   console.log(`College Copilot: http://localhost:${port}`);
   // Warm the Redis connection (and surface its status) without blocking startup.
@@ -88,8 +84,17 @@ app.listen(port, () => {
   }
 });
 
-process.on("SIGINT", async () => {
-  log.info("shutdown");
-  await closeRedis();
-  process.exit(0);
-});
+let shuttingDown = false;
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  log.info("shutdown", { signal });
+  server.close(async () => {
+    await closeRedis();
+    closeDb();
+    process.exit(0);
+  });
+}
+
+process.on("SIGINT", () => { void shutdown("SIGINT"); });
+process.on("SIGTERM", () => { void shutdown("SIGTERM"); });

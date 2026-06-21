@@ -35,6 +35,8 @@ function runMigrations(db: DB): void {
   ensureColumn(db, "courses", "prerequisites", "TEXT");
   ensureColumn(db, "courses", "avg_gpa", "REAL");
   ensureColumn(db, "student_profiles", "college", "TEXT");
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_targets_user_category
+           ON targets(user_id, category)`);
 
   // Backfill category for pre-existing rows from the latent path/kind signal.
   db.exec(`UPDATE targets SET category = 'industry'
