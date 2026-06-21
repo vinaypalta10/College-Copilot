@@ -11,6 +11,7 @@ import { advisorRouter } from "./api/advisor.ts";
 import { plansRouter } from "./api/plans.ts";
 import { scheduleRouter } from "./api/schedule.ts";
 import { opportunitiesRouter } from "./api/opportunities.ts";
+import { professorsRouter } from "./api/professors.ts";
 import { voiceRouter } from "./api/voice.ts";
 import { attachUser } from "./auth/session.ts";
 import "./skills/index.ts";
@@ -50,6 +51,7 @@ app.use("/api/advisor", limitPosts(writeLimit), advisorRouter(db)); // runs the 
 app.use("/api/plans", plansRouter(db));
 app.use("/api/schedule", scheduleRouter(db));
 app.use("/api/opportunities", opportunitiesRouter(db));
+app.use("/api/professors", limitPosts(writeLimit), professorsRouter(db));
 app.use("/api/voice", limitPosts(writeLimit), voiceRouter());
 
 app.get("/api/healthz", (_req, res) => {

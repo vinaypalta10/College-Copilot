@@ -30,6 +30,7 @@ function toast(msg) {
 
 const minToHHMM = (m) => m == null ? "" : `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const csv = (s) => (s || "").split(",").map(x => x.trim()).filter(Boolean);
+const esc = (s = "") => String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
 const BERKELEY_TERM_IDS = { "fall-2026": "8588" };
 const CURRENT_TERM = "fall-2026";
 
@@ -91,21 +92,24 @@ $("#logoutBtn").addEventListener("click", async () => {
 
 $$("[data-find-opps]").forEach(btn => btn.addEventListener("click", () => {
   const category = btn.dataset.findOpps;
-  const rootSel = category === "industry" ? "#jobsList" : "#researchList";
-  const querySel = category === "industry" ? "#jobsQuery" : "#researchQuery";
-  const traceSel = category === "industry" ? "#jobsTrace" : "#researchTrace";
+  const rootSel = category === "industry" ? "#jobsList" : "#programsList";
+  const querySel = category === "industry" ? "#jobsQuery" : "#programsQuery";
+  const traceSel = category === "industry" ? "#jobsTrace" : "#programsTrace";
   searchOpportunities(category, rootSel, querySel, traceSel, btn);
 }));
+$("#findProfessorsBtn")?.addEventListener("click", searchProfessors);
+$("#professorQuery")?.addEventListener("keydown", (e) => { if (e.key === "Enter") searchProfessors(); });
 
 // ───────── Tabs ─────────
 function switchTab(name) {
   $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
-  $("#opportunitiesMenuBtn").classList.toggle("active", name === "research" || name === "jobs");
+  $("#opportunitiesMenuBtn").classList.toggle("active", name === "professors" || name === "programs" || name === "jobs");
   $(".tab-menu")?.classList.remove("open");
   $("#opportunitiesMenuBtn").setAttribute("aria-expanded", "false");
   $$(".panel-view").forEach(v => v.hidden = v.dataset.view !== name);
   if (name === "schedule") renderCalendar();
-  if (name === "research") loadOpportunities("research", "#researchList");
+  if (name === "professors") initProfessorPanel();
+  if (name === "programs") loadOpportunities("research", "#programsList");
   if (name === "jobs") loadOpportunities("industry", "#jobsList");
 }
 $("#tabs").addEventListener("click", (e) => {
@@ -512,7 +516,7 @@ async function searchOpportunities(category, rootSel, querySel, traceSel, btn) {
     root.innerHTML = `<div class="empty">Opportunity agents failed. (${err.message})</div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = category === "industry" ? "Find jobs" : "Find research";
+    btn.textContent = category === "industry" ? "Find jobs" : "Find programs";
   }
 }
 
@@ -556,6 +560,99 @@ function renderOpportunities(root, category, opportunities) {
   }).join("");
   $$("[data-draft]", root).forEach(b => b.addEventListener("click", () => draftOutreach(b.dataset.draft, b)));
 }
+
+function initProfessorPanel() {
+  const root = $("#professorList");
+  if (!root || root.dataset.ready) return;
+  root.dataset.ready = "1";
+  root.innerHTML = `<div class="empty">Search official Berkeley faculty pages to find professors by research fit.</div>`;
+}
+
+async function searchProfessors() {
+  const root = $("#professorList");
+  const trace = $("#professorTrace");
+  const btn = $("#findProfessorsBtn");
+  const query = $("#professorQuery")?.value?.trim() || "";
+  if (!root || !btn) return;
+  btn.disabled = true;
+  btn.textContent = "Searching...";
+  root.innerHTML = `<div class="empty">Searching official Berkeley faculty pages...</div>`;
+  if (trace) trace.hidden = true;
+  try {
+    const result = await api("/professors/search", { method: "POST", body: { query, limit: 12 } });
+    if (trace) {
+      trace.hidden = false;
+      trace.innerHTML = `
+        <div class="trace-head">
+          <strong>Faculty search</strong>
+          <span>${esc(result.mode)} · ${result.count || 0} result(s)</span>
+        </div>
+        <div class="trace-steps">
+          ${(result.sources || []).map(source => `<span class="ok">official source: ${esc(source)}</span>`).join("")}
+        </div>`;
+    }
+    if (!result.professors?.length) {
+      root.innerHTML = `<div class="empty">No professor matches found. Try a broader research area or a professor name.</div>`;
+      return;
+    }
+    renderProfessors(root, result.professors);
+  } catch (err) {
+    root.innerHTML = `<div class="empty">Professor search failed. (${esc(err.message)})</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Find professors";
+  }
+}
+
+function renderProfessors(root, professors) {
+  root.innerHTML = professors.map((p, index) => `
+    <article class="course-card professor-card" data-professor="${index}">
+      <div>
+        <h3>${esc(p.name)}</h3>
+        <div class="course-meta">
+          ${p.title ? `<span class="tag">${esc(p.title)}</span>` : ""}
+          ${p.email ? `<span class="tag">email</span>` : ""}
+          <span class="tag good">Berkeley faculty page</span>
+        </div>
+        <p class="desc">${esc(p.field || "Research interests not listed.")}</p>
+      </div>
+      <div class="score-badge ${scoreClass(p.score || 0)}">
+        <small>Fit</small>
+        <span>${Math.round(p.score || 0)}</span>
+      </div>
+      <div class="card-actions">
+        <button data-professor-detail="${index}">View details</button>
+        ${p.source ? `<a class="btn" href="${esc(p.source)}" target="_blank" rel="noopener">Open source ↗</a>` : ""}
+      </div>
+    </article>`).join("");
+
+  $$("[data-professor-detail]", root).forEach(btn => {
+    btn.addEventListener("click", () => showProfessorDialog(professors[Number(btn.dataset.professorDetail)]));
+  });
+}
+
+function showProfessorDialog(professor) {
+  if (!professor) return;
+  const dialog = $("#professorDialog");
+  const body = $("#professorDialogBody");
+  if (!dialog || !body) return;
+  body.innerHTML = `
+    <h2>${esc(professor.name)}</h2>
+    ${professor.title ? `<p class="muted">${esc(professor.title)}</p>` : ""}
+    <div class="modal-grid">
+      <div><strong>Email</strong><span>${professor.email ? `<a href="mailto:${esc(professor.email)}">${esc(professor.email)}</a>` : "Not listed"}</span></div>
+      <div><strong>Research field</strong><span>${esc(professor.field || "Not listed")}</span></div>
+      <div><strong>Source</strong><span><a href="${esc(professor.source)}" target="_blank" rel="noopener">${esc(professor.sourceName || "Berkeley faculty page")}</a></span></div>
+    </div>
+    <h3>Bio</h3>
+    <p>${esc(professor.bio || "No biography found on the official page.")}</p>`;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+}
+
+$("#professorDialog .modal-close")?.addEventListener("click", () => $("#professorDialog")?.close());
+$("#professorDialog")?.addEventListener("click", (e) => {
+  if (e.target.id === "professorDialog") e.target.close();
+});
 
 async function draftOutreach(targetId, btn) {
   btn.disabled = true; btn.textContent = "Drafting…";
