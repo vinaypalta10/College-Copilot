@@ -9,6 +9,8 @@ import { profileRouter } from "./api/profile.ts";
 import { coursesRouter } from "./api/courses.ts";
 import { advisorRouter } from "./api/advisor.ts";
 import { plansRouter } from "./api/plans.ts";
+import { professorsRouter } from "./api/professors.ts";
+import { voiceRouter } from "./api/voice.ts";
 import { attachUser } from "./auth/session.ts";
 import "./skills/index.ts";
 import "./agents/index.ts";
@@ -45,6 +47,8 @@ app.use("/api/profile", profileRouter(db));
 app.use("/api/courses", coursesRouter(db));
 app.use("/api/advisor", limitPosts(writeLimit), advisorRouter(db));
 app.use("/api/plans", plansRouter(db));
+app.use("/api/professors", limitPosts(writeLimit), professorsRouter(db));
+app.use("/api/voice", limitPosts(writeLimit), voiceRouter());
 
 app.get("/api/healthz", (_req, res) => {
   res.json({
