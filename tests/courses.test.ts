@@ -23,6 +23,27 @@ test("scoreCourse: requirement match boosts and is flagged", () => {
   assert.ok(r.score > 50);
 });
 
+test("scoreCourse: major subject match boosts and is flagged", () => {
+  const r = scoreCourse({ course: course({ subject: "UGBA", number: "10", title: "Principles of Business" }) }, {
+    major: "Business Administration (Undergraduate Business Program)",
+  });
+  assert.equal(r.flags.majorMatch, true);
+  assert.ok(r.reasons.some(reason => reason.includes("Business Administration")));
+});
+
+test("scoreCourse: primary major subject outranks a supporting subject", () => {
+  const prefs = { major: "Business Administration (Undergraduate Business Program)" };
+  const ugba = scoreCourse({ course: course({ subject: "UGBA", number: "10", title: "Principles of Business" }) }, prefs);
+  const econ = scoreCourse({ course: course({ subject: "ECON", number: "1", title: "Introduction to Economics" }) }, prefs);
+  assert.ok(ugba.score > econ.score);
+});
+
+test("scoreCourse: profile research interests do not affect course ranking", () => {
+  const base = scoreCourse({ course: course() }, {});
+  const withExtraneousField = scoreCourse({ course: course() }, { interests: ["algorithms"] } as any);
+  assert.equal(withExtraneousField.score, base.score);
+});
+
 test("scoreCourse: professor below min rating is penalized", () => {
   const cand: CourseCandidate = {
     course: course(),

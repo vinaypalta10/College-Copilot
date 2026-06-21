@@ -44,7 +44,7 @@ Goal: a smooth, bug-free **happy path** to show. See [ROADMAP.md](ROADMAP.md) fo
 ```bash
 cp .env.example .env       # optional: add a provider key + Google OAuth (both have fallbacks)
 npm install
-npm run import:courses      # pull Fall 2026 courses from Berkeleytime (+ RateMyProfessors)
+npm run import:courses      # pull the full Fall 2026 catalog from Berkeleytime (+ RateMyProfessors)
 npm run dev                # http://localhost:4174
 ```
 
@@ -75,7 +75,7 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
 |---|---|
 | `npm run dev` | Watch-mode server on `$PORT` (default 4174). |
 | `npm start` | Same as dev without watch. |
-| `npm run import:courses` | Import courses + sections + grades from Berkeleytime, then enrich instructors from RateMyProfessors. Flags: `--term fall-2026 --subjects COMPSCI,DATA,STAT,MATH --limit 60 --no-rmp`. Idempotent. |
+| `npm run import:courses` | Import all courses + sections + grades from Berkeleytime, then enrich instructors from RateMyProfessors. Optional flags: `--term fall-2026 --subjects COMPSCI,DATA,STAT,MATH --limit 60 --no-rmp`. Idempotent. |
 | `npm run migrate` | Import legacy outreach JSON (research opportunities) into SQLite. |
 | `npm test` | node:test suite (course scoring + schedule builder are pure & fully unit-tested). |
 

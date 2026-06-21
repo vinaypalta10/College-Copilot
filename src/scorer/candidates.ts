@@ -17,7 +17,6 @@ export function prefsFromProfile(p: StudentProfileRow | undefined): StudentPrefs
   };
   return {
     major: p?.major ?? null,
-    interests: parse<string[]>(p?.interests, []),
     completedCourses: parse<string[]>(p?.completed_courses, []),
     requirementsRemaining: parse<string[]>(p?.requirements_remaining, []),
     timePrefs: parse<StudentPrefs["timePrefs"]>(p?.time_prefs, {}),

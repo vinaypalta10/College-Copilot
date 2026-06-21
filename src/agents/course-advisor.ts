@@ -30,7 +30,6 @@ export interface CourseAdvisorOutput {
 
 interface QueryConstraints {
   subject?: string | null;
-  interests?: string[];
   minProfRating?: number | null;
   workloadTolerance?: "light" | "medium" | "heavy" | null;
   earliest?: string | null;
@@ -42,7 +41,7 @@ interface QueryConstraints {
 
 const PARSE_SYSTEM = `You convert a UC Berkeley student's natural-language class-search request into JSON.
 Return ONLY a JSON object with any of these keys (omit unknown ones):
-  subject (string, dept code like "COMPSCI"), interests (string[]),
+  subject (string, dept code like "COMPSCI"),
   minProfRating (number 0-5), workloadTolerance ("light"|"medium"|"heavy"),
   earliest ("HH:MM"), latest ("HH:MM"), daysOff (string[] of M,Tu,W,Th,F),
   openOnly (boolean), requirementFocus (string[]).
@@ -101,7 +100,6 @@ async function parseQuery(query: string): Promise<QueryConstraints> {
 function mergePrefs(base: StudentPrefs, c: QueryConstraints): StudentPrefs {
   return {
     ...base,
-    interests: [...(base.interests ?? []), ...(c.interests ?? [])],
     requirementsRemaining: [...(base.requirementsRemaining ?? []), ...(c.requirementFocus ?? [])],
     minProfRating: c.minProfRating ?? base.minProfRating,
     workloadTolerance: c.workloadTolerance ?? base.workloadTolerance,
@@ -117,7 +115,6 @@ function summarize(c: QueryConstraints, count: number): string {
   const bits: string[] = [];
   if (c.subject) bits.push(`${c.subject} courses`);
   if (c.requirementFocus?.length) bits.push(`for ${c.requirementFocus.join(", ")}`);
-  if (c.interests?.length) bits.push(`about ${c.interests.join(", ")}`);
   if (c.workloadTolerance) bits.push(`${c.workloadTolerance} workload`);
   if (c.minProfRating) bits.push(`professors rated ≥ ${c.minProfRating}`);
   if (c.latest) bits.push(`ending by ${c.latest}`);

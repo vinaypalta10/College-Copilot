@@ -14,9 +14,14 @@ export function coursesRouter(db: DB): Router {
 
   router.use(requireAuth);
 
+  router.get("/subjects", (_req, res) => {
+    res.json({ subjects: repo.listCourseSubjects() });
+  });
+
   router.get("/", (req: AuthedRequest, res) => {
     const term = String(req.query.term ?? DEFAULT_TERM);
     const limit = Math.min(Number(req.query.limit ?? 50), 200);
+    const offset = Math.max(Number(req.query.offset ?? 0), 0);
     const prefs = prefsFromProfile(repo.getProfile(req.user!.id));
     const ranked = rankCourses(repo, term, prefs, {
       subject: req.query.subject ? String(req.query.subject) : null,
@@ -26,7 +31,8 @@ export function coursesRouter(db: DB): Router {
     res.json({
       term,
       count: ranked.length,
-      courses: ranked.slice(0, limit).map(({ cand, fit }) => shapeCourse(cand, fit)),
+      offset,
+      courses: ranked.slice(offset, offset + limit).map(({ cand, fit }) => shapeCourse(cand, fit)),
     });
   });
 

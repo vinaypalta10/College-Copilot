@@ -54,16 +54,16 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
 interface CatalogLite { subject: string; courseNumber: string }
 
 /** Distinct (subject, courseNumber) pairs for the term, filtered to `subjects`. */
-export async function listCourseKeys(term: ParsedTerm, subjects: string[]): Promise<CatalogLite[]> {
+export async function listCourseKeys(term: ParsedTerm, subjects?: string[]): Promise<CatalogLite[]> {
   const data = await gql<{ catalog: Array<{ subject: string; courseNumber: string }> }>(
     `query($y:Int!,$s:Semester!){ catalog(year:$y, semester:$s){ subject courseNumber } }`,
     { y: term.year, s: term.semester },
   );
-  const allow = new Set(subjects.map(s => s.toUpperCase()));
+  const allow = subjects?.length ? new Set(subjects.map(s => s.toUpperCase())) : null;
   const seen = new Set<string>();
   const out: CatalogLite[] = [];
   for (const row of data.catalog) {
-    if (!allow.has(row.subject?.toUpperCase())) continue;
+    if (allow && !allow.has(row.subject?.toUpperCase())) continue;
     const key = `${row.subject}|${row.courseNumber}`;
     if (seen.has(key)) continue;
     seen.add(key);

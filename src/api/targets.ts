@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Repo } from "../db/repo.ts";
 import type { DB } from "../db/client.ts";
 import { quickAddFromUrl } from "../scanner/quickAdd.ts";
+import { requireAuth, type AuthedRequest } from "../auth/session.ts";
 
 interface ApiTarget {
   id: string;
@@ -75,8 +76,18 @@ export function targetsRouter(db: DB): Router {
   const router = Router();
   const repo = new Repo(db);
 
-  router.get("/", (_req, res) => {
-    const targets = repo.listTargets();
+  router.get("/", requireAuth, (req: AuthedRequest, res) => {
+    const profile = repo.getProfile(req.user!.id);
+    let interests: string[] = [];
+    try { interests = profile?.interests ? JSON.parse(profile.interests) : []; } catch { interests = []; }
+    const normalizedInterests = interests.map(i => i.toLowerCase()).filter(Boolean);
+    const targets = repo.listTargets().sort((a, b) => {
+      const interestScore = (target: typeof a) => {
+        const text = `${target.name} ${target.lab ?? ""} ${target.project ?? ""} ${target.fit ?? ""} ${target.notes ?? ""} ${target.evidence ?? ""}`.toLowerCase();
+        return normalizedInterests.filter(interest => text.includes(interest)).length;
+      };
+      return interestScore(b) - interestScore(a) || b.score - a.score;
+    });
     const decisions = new Map(repo.listDecisions().map(d => [d.target_id, d]));
     const followUps = repo.openFollowUps();
     const followUpByTarget = new Map<string, { id: number; dueAt: string; note: string | null }>();
@@ -86,6 +97,7 @@ export function targetsRouter(db: DB): Router {
       }
     }
     res.json({
+      interests,
       targets: targets.map(t => shapeTarget(t, decisions.get(t.id), followUpByTarget.get(t.id) ?? null)),
     });
   });

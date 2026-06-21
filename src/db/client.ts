@@ -29,6 +29,7 @@ function runMigrations(db: DB): void {
   ensureColumn(db, "targets", "user_id", "TEXT");
   ensureColumn(db, "courses", "prerequisites", "TEXT");
   ensureColumn(db, "courses", "avg_gpa", "REAL");
+  ensureColumn(db, "student_profiles", "college", "TEXT");
 }
 
 function ensureColumn(db: DB, table: string, column: string, type: string): void {
