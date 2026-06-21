@@ -46,7 +46,7 @@ Goal: a smooth, bug-free **happy path** to show. See [ROADMAP.md](ROADMAP.md) fo
 ```bash
 cp .env.example .env       # optional: add a provider key + Google OAuth (both have fallbacks)
 npm install
-npm run import:courses      # pull Fall 2026 courses from Berkeleytime (+ RateMyProfessors)
+npm run import:courses      # pull the full Fall 2026 catalog from Berkeleytime (+ RateMyProfessors)
 npm run dev                # http://localhost:4174
 ```
 
@@ -77,7 +77,7 @@ To enable Google Sign-In, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `OAU
 |---|---|
 | `npm run dev` | Watch-mode server on `$PORT` (default 4174). |
 | `npm start` | Same as dev without watch. |
-| `npm run import:courses` | Import courses + sections + grades from Berkeleytime (40 subjects across every college by default), then enrich instructors from RateMyProfessors, then warm the Redis catalog cache. Flags: `--subjects COMPSCI,DATA --per-subject 35 --limit 60 --no-rmp`. Idempotent. |
+| `npm run import:courses` | Import all courses + sections + grades from Berkeleytime (the full catalog by default), enrich instructors from RateMyProfessors, then warm the Redis catalog cache + vector index. Optional flags: `--subjects COMPSCI,DATA --per-subject 35 --limit 60 --no-rmp`. Idempotent. |
 | `npm run clean:legacy-data` | Remove cached opportunity rows while preserving courses, instructors, users, profiles, and plans. |
 | `npm test` | node:test suite (course scoring + schedule builder are pure & fully unit-tested). |
 

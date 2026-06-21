@@ -2,7 +2,7 @@
  * Import UC Berkeley courses + sections for a term from Berkeleytime into SQLite.
  *
  * Usage:
- *   npm run import:courses                      # TERM env or fall-2026, default subjects
+ *   npm run import:courses                      # all subjects for COURSE_TERM or fall-2026
  *   npm run import:courses -- --term fall-2026 --subjects COMPSCI,DATA,STAT,MATH
  *   npm run import:courses -- --limit 40        # cap courses (quick demo import)
  *
@@ -12,32 +12,12 @@
 
 import { getDb } from "../db/client.ts";
 import { Repo } from "../db/repo.ts";
-import { parseTerm, listCourseKeys, fetchCourseDetail } from "../ingest/berkeleytime.ts";
+import { parseTerm, listCourseKeys, fetchCourseDetail, courseId } from "../ingest/berkeleytime.ts";
 import { instructorKey } from "../lib/instructors.ts";
 import { enrichInstructor } from "../skills/professor-rating.ts";
 import { refreshCatalog } from "../db/courseCache.ts";
 import { refreshIndex } from "../db/vectorStore.ts";
 import { closeRedis } from "../db/redis.ts";
-
-// A broad, demo-rich slice of Berkeley spanning every college: CS/EECS/data,
-// engineering, the physical & life sciences, social sciences, humanities, and
-// business. `npm run import:courses` pulls all of these by default.
-const DEFAULT_SUBJECTS = [
-  // Computing, data & math
-  "COMPSCI", "EECS", "ELENG", "DATA", "DATASCI", "INFO", "STAT", "MATH",
-  // Physical sciences & engineering
-  "PHYSICS", "ASTRON", "CHEM", "MECENG", "CIVENG", "INDENG", "BIOENG", "MATSCI", "NUCENG",
-  // Life & health sciences
-  "MCELLBI", "INTEGBI", "NEU", "PBHLTH", "NUSCTX",
-  // Mind & behavior
-  "COGSCI", "PSYCH", "LINGUIS",
-  // Social sciences
-  "ECON", "POLSCI", "SOCIOL", "ANTHRO", "LEGALST", "GEOG", "ENVECON",
-  // Humanities & arts
-  "ENGLISH", "HISTORY", "PHILOS", "MUSIC", "FILM", "ART", "COMLIT",
-  // Business
-  "UGBA",
-];
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -59,14 +39,15 @@ async function pool<T, R>(items: T[], limit: number, fn: (item: T, i: number) =>
 
 async function main(): Promise<void> {
   const term = parseTerm(arg("term") || process.env.COURSE_TERM || "fall-2026");
-  const subjects = (arg("subjects") || DEFAULT_SUBJECTS.join(",")).split(",").map(s => s.trim()).filter(Boolean);
+  const subjectsArg = arg("subjects");
+  const subjects = subjectsArg?.split(",").map(s => s.trim()).filter(Boolean);
   const limit = arg("limit") ? Number(arg("limit")) : Infinity;
-  // Per-subject cap keeps coverage even across many departments (so one huge
-  // department doesn't crowd out the rest). Defaults to 40.
-  const perSubject = arg("per-subject") ? Number(arg("per-subject")) : 40;
+  // Optional per-subject cap for even breadth on a quick demo import (e.g.
+  // `--per-subject 35`). Off by default so a bare run pulls the full catalog.
+  const perSubject = arg("per-subject") ? Number(arg("per-subject")) : Infinity;
   const concurrency = Number(arg("concurrency") || 6);
 
-  console.log(`Importing ${term.term} for ${subjects.length} subjects: ${subjects.join(", ")}`);
+  console.log(`Importing ${term.term} for ${subjects?.length ? `subjects: ${subjects.join(", ")}` : "all subjects"}`);
 
   const db = getDb();
   const repo = new Repo(db);
@@ -92,7 +73,23 @@ async function main(): Promise<void> {
   await pool(keys, concurrency, async (key, i) => {
     try {
       const detail = await fetchCourseDetail(key.subject, key.courseNumber, term);
-      if (!detail) return;
+      if (!detail) {
+        repo.upsertCourse({
+          id: courseId(key.subject, key.courseNumber),
+          subject: key.subject,
+          number: key.courseNumber,
+          title: `${key.subject} ${key.courseNumber}`,
+          units: null,
+          description: null,
+          requirements_satisfied: null,
+          terms_offered: JSON.stringify([term.term]),
+          prerequisites: null,
+          avg_gpa: null,
+          updated_at: new Date().toISOString(),
+        });
+        courses++;
+        return;
+      }
       repo.upsertCourse(detail.course);
       courses++;
       for (const s of detail.sections) { repo.upsertSection(s); sections++; }

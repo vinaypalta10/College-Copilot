@@ -98,6 +98,7 @@ export interface SessionRow {
 
 export interface StudentProfileRow {
   user_id: string;
+  college: string | null;
   major: string | null;
   grad_year: number | null;
   interests: string | null;
@@ -204,13 +205,14 @@ export class Repo {
   upsertProfile(p: StudentProfileRow): void {
     this.db.prepare(`
       INSERT INTO student_profiles (
-        user_id, major, grad_year, interests, completed_courses,
+        user_id, college, major, grad_year, interests, completed_courses,
         requirements_remaining, time_prefs, workload_tolerance, min_prof_rating, updated_at
       ) VALUES (
-        @user_id, @major, @grad_year, @interests, @completed_courses,
+        @user_id, @college, @major, @grad_year, @interests, @completed_courses,
         @requirements_remaining, @time_prefs, @workload_tolerance, @min_prof_rating, @updated_at
       )
       ON CONFLICT(user_id) DO UPDATE SET
+        college = excluded.college,
         major = excluded.major,
         grad_year = excluded.grad_year,
         interests = excluded.interests,
@@ -253,6 +255,11 @@ export class Repo {
 
   listCourses(): CourseRow[] {
     return this.db.prepare(`SELECT * FROM courses ORDER BY subject, number`).all() as CourseRow[];
+  }
+
+  listCourseSubjects(): string[] {
+    return (this.db.prepare(`SELECT DISTINCT subject FROM courses ORDER BY subject`).all() as Array<{ subject: string }>)
+      .map(row => row.subject);
   }
 
   countCourses(): number {

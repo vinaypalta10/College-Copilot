@@ -1,5 +1,7 @@
 // College Copilot — single-page controller (vanilla ES modules, no build step).
 
+import { BERKELEY_COLLEGES } from "./berkeley-majors.js";
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -27,8 +29,18 @@ function toast(msg) {
 
 const minToHHMM = (m) => m == null ? "" : `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const csv = (s) => (s || "").split(",").map(x => x.trim()).filter(Boolean);
+const BERKELEY_TERM_IDS = { "fall-2026": "8588" };
+const CURRENT_TERM = "fall-2026";
 
-const state = { me: null, courses: [], cart: loadCart() };
+function berkeleyCourseUrl(course) {
+  const params = new URLSearchParams({ search: `${course.subject} ${course.number}` });
+  const termId = BERKELEY_TERM_IDS[CURRENT_TERM];
+  if (termId) params.append("f[0]", `term:${termId}`);
+  return `https://classes.berkeley.edu/search/class?${params}`;
+}
+
+const COURSE_PAGE_SIZE = 60;
+const state = { me: null, courses: [], courseOffset: 0, courseCount: 0, cart: loadCart() };
 
 function loadCart() { try { return JSON.parse(localStorage.getItem("cc_cart") || "[]"); } catch { return []; } }
 function saveCart() { localStorage.setItem("cc_cart", JSON.stringify(state.cart)); }
@@ -108,10 +120,56 @@ $("#themeToggle").addEventListener("click", () => {
 });
 
 // ───────── Profile ─────────
+function collegeMajors(college) {
+  if (!college) return [];
+  if (college.groups) return college.groups.flatMap(group => group.majors);
+  return college.majors || [];
+}
+
+function findCollegeForMajor(major) {
+  return BERKELEY_COLLEGES.find(college => collegeMajors(college).includes(major));
+}
+
+function populateCollegeSelect(selected = "") {
+  const select = $("#profileForm").college;
+  select.innerHTML = '<option value="">Choose your college</option>' +
+    BERKELEY_COLLEGES.map(college =>
+      `<option value="${college.name}">${college.name}</option>`
+    ).join("");
+  select.value = selected;
+}
+
+function populateMajorSelect(collegeName, selected = "") {
+  const select = $("#profileForm").major;
+  const college = BERKELEY_COLLEGES.find(item => item.name === collegeName);
+  select.disabled = !college;
+
+  if (!college) {
+    select.innerHTML = '<option value="">Choose a college first</option>';
+    return;
+  }
+
+  const options = college.groups
+    ? college.groups.map(group => `
+        <optgroup label="${group.name}">
+          ${group.majors.map(major => `<option value="${major}">${major}</option>`).join("")}
+        </optgroup>`).join("")
+    : college.majors.map(major => `<option value="${major}">${major}</option>`).join("");
+
+  select.innerHTML = `<option value="">Choose your major</option>${options}`;
+  select.value = selected;
+}
+
+$("#profileForm").college.addEventListener("change", (event) => {
+  populateMajorSelect(event.target.value);
+});
+
 async function loadProfileIntoForm() {
   const { profile } = await api("/profile");
   const f = $("#profileForm");
-  f.major.value = profile.major || "";
+  const college = profile.college || findCollegeForMajor(profile.major)?.name || "";
+  populateCollegeSelect(college);
+  populateMajorSelect(college, profile.major || "");
   f.gradYear.value = profile.gradYear || "";
   f.interests.value = (profile.interests || []).join(", ");
   f.completedCourses.value = (profile.completedCourses || []).join(", ");
@@ -127,6 +185,7 @@ $("#profileForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target;
   const body = {
+    college: f.college.value,
     major: f.major.value.trim(),
     gradYear: f.gradYear.value ? Number(f.gradYear.value) : undefined,
     interests: csv(f.interests.value),
@@ -147,31 +206,33 @@ $("#profileForm").addEventListener("submit", async (e) => {
 
 // ───────── Discover ─────────
 async function loadSubjects() {
-  const seen = new Set();
-  const { courses } = await api("/courses?limit=200");
-  state.courses = courses;
-  for (const c of courses) seen.add(c.subject);
+  const { subjects } = await api("/courses/subjects");
   const sel = $("#subjectFilter");
   sel.innerHTML = '<option value="">All subjects</option>' +
-    [...seen].sort().map(s => `<option value="${s}">${s}</option>`).join("");
+    subjects.map(s => `<option value="${s}">${s}</option>`).join("");
 }
 
-async function refreshCourses() {
+async function refreshCourses({ append = false } = {}) {
+  const offset = append ? state.courseOffset : 0;
   const q = $("#searchInput").value.trim();
   const subject = $("#subjectFilter").value;
   const openOnly = $("#openOnly").checked;
-  const params = new URLSearchParams({ limit: "60" });
+  const params = new URLSearchParams({ limit: String(COURSE_PAGE_SIZE), offset: String(offset) });
   if (q) params.set("q", q);
   if (subject) params.set("subject", subject);
   if (openOnly) params.set("openOnly", "true");
-  const { courses } = await api(`/courses?${params}`);
-  state.courses = courses;
-  renderCourses(courses, $("#courseList"));
+  const { courses, count } = await api(`/courses?${params}`);
+  state.courses = append ? [...state.courses, ...courses] : courses;
+  state.courseOffset = offset + courses.length;
+  state.courseCount = count;
+  renderCourses(state.courses, $("#courseList"));
+  $("#loadMoreCourses").hidden = state.courseOffset >= state.courseCount || courses.length === 0;
 }
 
 $("#searchInput").addEventListener("input", debounce(refreshCourses, 250));
 $("#subjectFilter").addEventListener("change", refreshCourses);
 $("#openOnly").addEventListener("change", refreshCourses);
+$("#loadMoreCourses").addEventListener("click", () => refreshCourses({ append: true }));
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
 function scoreClass(s) { return s >= 75 ? "s-hi" : s >= 55 ? "s-mid" : "s-lo"; }
@@ -195,6 +256,7 @@ function courseCard(c, { research = false } = {}) {
   const actions = research ? "" : `
     <div class="card-actions">
       <button data-add="${c.id}">${inCart ? "✓ In schedule" : "+ Add to schedule"}</button>
+      <a class="course-catalog-link" href="${berkeleyCourseUrl(c)}" target="_blank" rel="noopener noreferrer">View Fall 2026 classes ↗</a>
     </div>`;
   return `<article class="course-card">
     <div>
@@ -221,6 +283,7 @@ async function runAdvisor() {
   const query = $("#advisorInput").value.trim();
   if (!query) return;
   const summary = $("#advisorSummary");
+  $("#loadMoreCourses").hidden = true;
   summary.hidden = false; summary.textContent = "Thinking…";
   try {
     const r = await api("/advisor", { method: "POST", body: { query } });

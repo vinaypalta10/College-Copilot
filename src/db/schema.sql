@@ -116,6 +116,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 -- One row per user. JSON columns hold flexible lists/objects.
 CREATE TABLE IF NOT EXISTS student_profiles (
   user_id               TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  college               TEXT,
   major                 TEXT,
   grad_year             INTEGER,
   interests             TEXT,          -- JSON: string[]

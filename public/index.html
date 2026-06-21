@@ -58,6 +58,7 @@
         </div>
         <div id="advisorSummary" class="advisor-summary" hidden></div>
         <div id="courseList" class="course-list"></div>
+        <button id="loadMoreCourses" class="btn load-more" hidden>Load more courses</button>
       </section>
 
       <!-- Schedule -->
@@ -109,9 +110,22 @@
           <h2>Your preferences</h2>
           <p class="muted">The Copilot ranks every class against these.</p>
           <form id="profileForm">
-            <label>Major<input name="major" placeholder="Computer Science"></label>
+            <div class="academic-selection">
+              <label>College
+                <select name="college" required>
+                  <option value="">Choose your college</option>
+                </select>
+              </label>
+              <label>Major
+                <select name="major" required disabled>
+                  <option value="">Choose a college first</option>
+                </select>
+              </label>
+            </div>
+            <p class="field-help">Choose a college first, then select its major or program.</p>
             <label>Expected grad year<input name="gradYear" type="number" min="2024" max="2035" placeholder="2027"></label>
-            <label>Interests (comma-separated)<input name="interests" placeholder="machine learning, systems, theory"></label>
+            <label>Research interests (comma-separated)<input name="interests" placeholder="machine learning, systems, theory"></label>
+            <p class="field-help">Used only to rank research opportunities—not courses.</p>
             <label>Completed courses (comma-separated)<input name="completedCourses" placeholder="COMPSCI 61A, COMPSCI 61B, MATH 54"></label>
             <label>Requirements remaining (comma-separated)<input name="requirementsRemaining" placeholder="CS upper division, Breadth: Arts"></label>
             <div class="row">

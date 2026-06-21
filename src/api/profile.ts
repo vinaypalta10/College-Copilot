@@ -5,6 +5,7 @@ import type { DB } from "../db/client.ts";
 import { requireAuth, type AuthedRequest } from "../auth/session.ts";
 
 const profileBody = z.object({
+  college: z.string().max(120).optional(),
   major: z.string().max(120).optional(),
   gradYear: z.number().int().min(2024).max(2035).optional(),
   interests: z.array(z.string().max(60)).max(20).optional(),
@@ -25,6 +26,7 @@ function shape(row: StudentProfileRow | undefined) {
     try { return JSON.parse(s) as T; } catch { return fallback; }
   };
   return {
+    college: row?.college ?? null,
     major: row?.major ?? null,
     gradYear: row?.grad_year ?? null,
     interests: parse<string[]>(row?.interests ?? null, []),
@@ -57,6 +59,7 @@ export function profileRouter(db: DB): Router {
     const json = (v: unknown) => (v === undefined ? undefined : JSON.stringify(v));
     repo.upsertProfile({
       user_id: req.user!.id,
+      college: d.college ?? existing?.college ?? null,
       major: d.major ?? existing?.major ?? null,
       grad_year: d.gradYear ?? existing?.grad_year ?? null,
       interests: json(d.interests) ?? existing?.interests ?? null,
