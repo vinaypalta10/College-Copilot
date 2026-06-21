@@ -161,6 +161,7 @@ Full list with comments in `.env.example`. Highlights:
 - `OAUTH_HOSTED_DOMAIN` — optional, restrict sign-in to one email domain.
 - `COURSE_TERM` — default term (e.g. `fall-2026`). *Named `COURSE_TERM`, not `TERM`, to avoid the shell's `$TERM`.*
 - `ANTHROPIC_API_KEY` — Claude API; powers the advisor's NL parsing (heuristic fallback when absent).
+- `DEEPGRAM_API_KEY` / `DEEPGRAM_MODEL=nova-3` — optional speech-to-text for mic buttons beside text prompts.
 - `REDIS_URL` — enables the Redis course-catalog cache (SQLite fallback when absent/unreachable).
   Optional `REDIS_CATALOG_TTL` (seconds, default 1800).
 

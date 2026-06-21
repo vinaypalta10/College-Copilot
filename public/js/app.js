@@ -1,6 +1,7 @@
 // College Copilot — single-page controller (vanilla ES modules, no build step).
 
 import { BERKELEY_COLLEGES } from "./berkeley-majors.js";
+import { initVoice } from "./voice.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -71,6 +72,7 @@ async function showApp() {
   await refreshCourses();
   renderCart();
   loadSavedPlans();
+  initVoice({ toast });
 }
 
 $("#devLoginForm").addEventListener("submit", async (e) => {

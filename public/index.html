@@ -53,11 +53,11 @@
       <!-- Discover -->
       <section class="panel-view" data-view="discover">
         <div class="advisor">
-          <input id="advisorInput" type="text" placeholder="Ask: &quot;only my CS upper-div, mornings, manageable workload, no prof below 3.5&quot;">
+          <input id="advisorInput" type="text" data-voice placeholder="Ask: &quot;only my CS upper-div, mornings, manageable workload, no prof below 3.5&quot;">
           <button id="advisorBtn" class="btn primary">Ask Copilot</button>
         </div>
         <div class="filters" id="filters">
-          <input id="searchInput" type="search" placeholder="Search title / number…">
+          <input id="searchInput" type="search" data-voice placeholder="Search title / number…">
           <select id="subjectFilter"><option value="">All subjects</option></select>
           <label class="check"><input type="checkbox" id="openOnly"> Open seats only</label>
         </div>
@@ -89,7 +89,7 @@
           <h2>Research opportunities</h2>
           <p class="muted">Ask the opportunity agents to search live Berkeley lab and URAP sources, then rank results against your profile.</p>
           <div class="opportunity-search">
-            <input id="researchQuery" type="search" placeholder="e.g. machine learning systems, NLP, computational biology">
+            <input id="researchQuery" type="search" data-voice placeholder="e.g. machine learning systems, NLP, computational biology">
             <button class="btn primary" data-find-opps="research">Find research</button>
           </div>
         </div>
@@ -103,7 +103,7 @@
           <h2>Jobs &amp; internships</h2>
           <p class="muted">Ask the opportunity agents to search live internship sources, then rank roles against your profile.</p>
           <div class="opportunity-search">
-            <input id="jobsQuery" type="search" placeholder="e.g. AI internship, startup SWE, data engineering">
+            <input id="jobsQuery" type="search" data-voice placeholder="e.g. AI internship, startup SWE, data engineering">
             <button class="btn primary" data-find-opps="industry">Find jobs</button>
           </div>
         </div>
@@ -131,15 +131,15 @@
             </div>
             <p class="field-help">Choose a college first, then select its major or program.</p>
             <label>Expected grad year<input name="gradYear" type="number" min="2024" max="2035" placeholder="2027"></label>
-            <label>Research interests (comma-separated)<input name="interests" placeholder="machine learning, systems, theory"></label>
+            <label>Research interests (comma-separated)<input name="interests" data-voice placeholder="machine learning, systems, theory"></label>
             <p class="field-help">Used only to rank research opportunities—not courses.</p>
-            <label>Completed courses (comma-separated)<input name="completedCourses" placeholder="COMPSCI 61A, COMPSCI 61B, MATH 54"></label>
-            <label>Requirements remaining (comma-separated)<input name="requirementsRemaining" placeholder="CS upper division, Breadth: Arts"></label>
+            <label>Completed courses (comma-separated)<input name="completedCourses" data-voice placeholder="COMPSCI 61A, COMPSCI 61B, MATH 54"></label>
+            <label>Requirements remaining (comma-separated)<input name="requirementsRemaining" data-voice placeholder="CS upper division, Breadth: Arts"></label>
             <div class="row">
               <label>Earliest class<input name="earliest" type="time" value="09:00"></label>
               <label>Latest class<input name="latest" type="time" value="18:00"></label>
             </div>
-            <label>Days you want off (comma-separated)<input name="daysOff" placeholder="F"></label>
+            <label>Days you want off (comma-separated)<input name="daysOff" data-voice placeholder="F"></label>
             <div class="row">
               <label>Workload tolerance
                 <select name="workloadTolerance"><option value="light">Light</option><option value="medium" selected>Medium</option><option value="heavy">Heavy</option></select>

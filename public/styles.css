@@ -28,6 +28,15 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 input, select, textarea { font: inherit; min-height: 42px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
 input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--muted) 78%, transparent); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--ring); background: var(--card); }
+.voice-input { position: relative; display: inline-flex; width: 100%; min-width: 0; }
+.voice-input input { width: 100%; padding-right: 42px; }
+.mic-btn { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; min-height: 0; padding: 0; display: grid; place-items: center; border-radius: 9px; background: transparent; border-color: transparent; color: var(--muted); line-height: 1; box-shadow: none; }
+.mic-btn:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: none; transform: translateY(-50%); }
+.mic-btn.recording { color: #fff; background: var(--bad); border-color: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 18%, transparent); }
+.mic-btn.loading { color: var(--accent); pointer-events: none; }
+.mic-btn.loading::after { content: ""; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+.mic-btn.loading { font-size: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Login */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
@@ -63,8 +72,10 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 48px; }
 .advisor input { flex: 1; }
 .advisor input { border-color: transparent; background: transparent; box-shadow: none; }
 .advisor input:focus { border-color: transparent; box-shadow: none; }
+.advisor .voice-input { flex: 1; }
 .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
 .filters input[type=search] { flex: 1; min-width: 200px; }
+.filters .voice-input { flex: 1; min-width: 200px; }
 .check { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13.5px; }
 .advisor-summary { background: var(--card); border: var(--panel-border); border-left: 3px solid var(--brand); border-radius: var(--panel-radius); padding: 14px 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
 .agent-trace { margin: 10px 0 4px; }
@@ -110,6 +121,7 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 48px; }
 .profile-card, .schedule-head, .research-head { background: var(--card); border: var(--panel-border); border-radius: var(--panel-radius); padding: 24px; box-shadow: var(--shadow); }
 .opportunity-search { display: flex; gap: 10px; margin-top: 14px; }
 .opportunity-search input { flex: 1; min-width: 180px; }
+.opportunity-search .voice-input { flex: 1; min-width: 180px; }
 #profileForm { display: grid; gap: 14px; margin-top: 16px; }
 #profileForm label { display: grid; gap: 5px; font-size: 13px; color: var(--muted); }
 #profileForm input, #profileForm select { font-size: 14.5px; color: var(--ink); }
